@@ -160,32 +160,44 @@
           <div class="section-header section-header--compact">
             <h2 class="section-title">統計</h2>
           </div>
-          <div class="stats-grid">
-            <div class="stat-card">
-              <h3>今日</h3>
-              <p id="stat-today-score" class="stat-score">-</p>
-              <p id="stat-today-thanks" class="stat-thanks">ありがとう -</p>
+          <div class="stats-layout">
+            <div class="stats-main">
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <h3>今日</h3>
+                  <p id="stat-today-score" class="stat-score">-</p>
+                  <p id="stat-today-thanks" class="stat-thanks">ありがとう -</p>
+                </div>
+                <div class="stat-card">
+                  <h3>今週</h3>
+                  <p id="stat-week-score" class="stat-score">-</p>
+                  <p id="stat-week-thanks" class="stat-thanks">ありがとう -</p>
+                </div>
+                <div class="stat-card">
+                  <h3>今月</h3>
+                  <p id="stat-month-score" class="stat-score">-</p>
+                  <p id="stat-month-thanks" class="stat-thanks">ありがとう -</p>
+                </div>
+              </div>
+              <div class="stats-block stats-chart-card">
+                <h3 class="stats-block__title">スコア推移</h3>
+                <canvas
+                  id="trend-chart"
+                  height="220"
+                  aria-label="スコア推移グラフ"
+                ></canvas>
+              </div>
             </div>
-            <div class="stat-card">
-              <h3>今週</h3>
-              <p id="stat-week-score" class="stat-score">-</p>
-              <p id="stat-week-thanks" class="stat-thanks">ありがとう -</p>
-            </div>
-            <div class="stat-card">
-              <h3>今月</h3>
-              <p id="stat-month-score" class="stat-score">-</p>
-              <p id="stat-month-thanks" class="stat-thanks">ありがとう -</p>
-            </div>
-          </div>
-          <canvas
-            id="trend-chart"
-            height="220"
-            aria-label="スコア推移グラフ"
-          ></canvas>
-          <div class="weekly-card">
-            <h3 class="weekly-card__title">週次AIコメント</h3>
-            <div id="weekly-comment-current" class="weekly-comment"></div>
-            <ul id="weekly-comment-history" class="weekly-comment-history"></ul>
+            <aside class="stats-side">
+              <div class="weekly-card stats-block">
+                <h3 class="weekly-card__title">週次AIコメント</h3>
+                <div id="weekly-comment-current" class="weekly-comment"></div>
+                <ul
+                  id="weekly-comment-history"
+                  class="weekly-comment-history"
+                ></ul>
+              </div>
+            </aside>
           </div>
         </section>
       </main>
