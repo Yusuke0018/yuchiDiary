@@ -116,6 +116,18 @@ const AGREEMENT_ACTIONS = {
   ARCHIVE: 'archive',
 };
 
+const DEFAULT_AGREEMENTS = [
+  '朝のハグ',
+  '６時50分には起きる（しんどい時は申告する）',
+  '子供たちとの時間の時は携帯を渡す。使いたい時は貸してもらう。',
+  '週に１回日曜日に評価、振り返り',
+  '休みの日に仕事をしたい時は事前に申告する。時間も。',
+  '汚い言葉を使わない（特にちいちゃん）',
+  '頼まれたら１０秒以内に動く。うだうだ言わない。',
+  '怒ってても無視しない。聞かれたら答える',
+  '毎日携帯を完全において夫婦の時間を３０分作る',
+];
+
 const SCORE_OPTIONS = [
   { value: 4, label: '良い' },
   { value: 3, label: 'ちょっといい' },
@@ -130,6 +142,7 @@ const MODAL_MODE = {
 
 let modalMode = MODAL_MODE.CREATE;
 let editingAgreementId = null;
+let agreementsSeeded = false;
 
 function showToast(message, duration = 2800) {
   dom.toast.textContent = message;
@@ -277,12 +290,51 @@ function subscribeAgreements() {
     orderBy('order', 'asc')
   );
   unsubscribers.agreements = onSnapshot(agreementsQuery, (snapshot) => {
+    if (!snapshot.size && !agreementsSeeded) {
+      seedDefaultAgreements().catch((error) => {
+        agreementsSeeded = false;
+        console.error('Failed to seed agreements', error);
+      });
+    }
     state.agreements = snapshot.docs.map((docSnap) => ({
       id: docSnap.id,
       ...docSnap.data(),
     }));
     renderAgreementList();
   });
+}
+
+async function seedDefaultAgreements() {
+  if (!state.profile) return;
+  agreementsSeeded = true;
+  try {
+    let createdCount = 0;
+    await Promise.all(
+      DEFAULT_AGREEMENTS.map(async (title, index) => {
+        const docRef = doc(db, 'agreements', `seed-${index}`);
+        const existing = await getDoc(docRef);
+        if (existing.exists()) return;
+        await setDoc(docRef, {
+          title,
+          body: '',
+          pinned: index === 0,
+          order: (index + 1) * 100,
+          status: 'active',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: state.profile.uid,
+          updatedBy: state.profile.uid,
+        });
+        createdCount += 1;
+      })
+    );
+    if (createdCount > 0) {
+      showToast('夫婦の決め事を初期登録しました');
+    }
+  } catch (error) {
+    agreementsSeeded = false;
+    throw error;
+  }
 }
 
 function renderAgreementList() {
