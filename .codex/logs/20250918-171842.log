@@ -1,0 +1,13 @@
+timestamp: 2025-09-18T17:18:42+0900
+branch: main
+latest_commit: fix: stabilize service worker caching
+diff_summary:
+  - bump service worker cache version to refresh cached assets
+  - restrict caching to same-origin GET requests and handle network-first fallback
+  - prevent response reuse errors when updating cache
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: fix: stabilize service worker caching
+git_push: pending

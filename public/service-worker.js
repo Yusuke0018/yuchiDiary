@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'yuchi-diary-v1';
+const CACHE_VERSION = 'yuchi-diary-v2';
 const CACHE_NAME = `yuchi-diary-cache-${CACHE_VERSION}`;
 const CORE_ASSETS = [
   '/',
@@ -42,25 +42,38 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') {
+  const { request } = event;
+  if (request.method !== 'GET') {
     return;
   }
+  if (!request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) {
-        fetch(event.request).then((response) => {
+    caches.match(request).then((cachedResponse) => {
+      const networkFetch = fetch(request)
+        .then((networkResponse) => {
+          if (
+            !networkResponse ||
+            networkResponse.status !== 200 ||
+            networkResponse.type === 'opaque'
+          ) {
+            return networkResponse;
+          }
+          const responseClone = networkResponse.clone();
           caches
             .open(CACHE_NAME)
-            .then((cache) => cache.put(event.request, response.clone()));
+            .then((cache) => cache.put(request, responseClone))
+            .catch((error) => console.error('SW cache put error', error));
+          return networkResponse;
+        })
+        .catch((error) => {
+          console.warn('SW network fetch failed, falling back to cache', error);
+          return cachedResponse;
         });
-        return cached;
-      }
-      return fetch(event.request).then((response) => {
-        caches
-          .open(CACHE_NAME)
-          .then((cache) => cache.put(event.request, response.clone()));
-        return response;
-      });
+
+      return cachedResponse || networkFetch;
     })
   );
 });
