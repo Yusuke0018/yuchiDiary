@@ -293,7 +293,10 @@ function computeSundayWeekNumber(dateTime) {
 }
 
 function getUserMetaByEmail(email) {
-  return userIndex.get(email) || null;
+  if (!email) {
+    return null;
+  }
+  return userIndex[email] || null;
 }
 
 function setActiveView(view) {
