@@ -323,6 +323,104 @@ async function initializeAutoUpdateMonitor() {
   }
   scheduleAutoUpdateCheck(autoUpdateConfig.checkIntervalMs);
 }
+function setupViewSwipe() {
+  const container = dom.main;
+  if (!container) {
+    return;
+  }
+  const viewOrder = ['today', 'agreements', 'history', 'stats'];
+  const interactiveSelector = 'input, textarea, select, button, a, [role="button"], [contenteditable="true"]';
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  let handled = false;
+
+  const reset = () => {
+    tracking = false;
+    handled = false;
+  };
+
+  container.addEventListener(
+    'touchstart',
+    (event) => {
+      if (!event.touches || event.touches.length !== 1) {
+        return;
+      }
+      const targetNode = event.target;
+      if (targetNode && targetNode.closest(interactiveSelector)) {
+        return;
+      }
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      tracking = true;
+      handled = false;
+    },
+    { passive: true }
+  );
+
+  container.addEventListener(
+    'touchmove',
+    (event) => {
+      if (!tracking || !event.touches || event.touches.length !== 1) {
+        return;
+      }
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      if (!handled) {
+        if (Math.abs(deltaX) > Math.abs(deltaY) + 8 && Math.abs(deltaX) > 10) {
+          handled = true;
+          event.preventDefault();
+        } else if (Math.abs(deltaY) > Math.abs(deltaX) + 8) {
+          reset();
+        }
+      } else {
+        event.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+
+  const goToStep = (direction) => {
+    const currentIndex = Math.max(
+      0,
+      viewOrder.indexOf(state.activeView || 'today')
+    );
+    const nextIndex = (currentIndex + direction + viewOrder.length) % viewOrder.length;
+    const nextView = viewOrder[nextIndex];
+    if (nextView) {
+      setActiveView(nextView);
+    }
+  };
+
+  const handleSwipeEnd = (event) => {
+    if (!tracking) {
+      return;
+    }
+    const changedTouches = event.changedTouches;
+    reset();
+    if (!handled || !changedTouches || changedTouches.length !== 1) {
+      return;
+    }
+    const touch = changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    if (Math.abs(deltaX) < 45) {
+      return;
+    }
+    if (deltaX < 0) {
+      goToStep(1);
+    } else {
+      goToStep(-1);
+    }
+  };
+
+  container.addEventListener('touchend', handleSwipeEnd, { passive: true });
+  container.addEventListener('touchcancel', reset, { passive: true });
+}
+
 function setupHistorySwipe() {
   const calendar = dom.historyCalendar;
   if (!calendar) {
@@ -979,7 +1077,7 @@ function renderAgreementList() {
     li.className = 'agreement-item';
     li.dataset.id = item.id;
     li.innerHTML = `
-      ${item.pinned ? '<span class="agreement-item__pin">★</span>' : ''}
+      
       <div class="agreement-item__content">
         <p class="agreement-item__title-text">${escapeHtml(item.title)}</p>
         ${item.body ? `<p class="agreement-item__note">${escapeHtml(item.body)}</p>` : ''}
@@ -1943,6 +2041,7 @@ function bindGlobalEvents() {
       changeHistoryMonth(1)
     );
   }
+  setupViewSwipe();
   if (dom.historyOpenDay) {
     dom.historyOpenDay.addEventListener('click', () => {
       const dayKey = dom.historyOpenDay.dataset.dayKey;
