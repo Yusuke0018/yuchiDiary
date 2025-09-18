@@ -217,24 +217,43 @@ function getUserMetaByEmail(email) {
 }
 
 function setActiveView(view) {
+  console.log(`ビューを切り替え: ${view}`);
+
   if (!dom.viewSections[view]) {
     console.warn('Unknown view', view);
     return;
   }
+
   state.activeView = view;
+
+  // すべてのセクションを非表示にして、選択されたものだけを表示
   Object.entries(dom.viewSections).forEach(([key, section]) => {
-    if (!section) return;
-    section.classList.toggle('hidden', key !== view);
+    if (!section) {
+      console.warn(`ビューセクション ${key} が見つかりません`);
+      return;
+    }
+    const shouldHide = key !== view;
+    section.classList.toggle('hidden', shouldHide);
+    console.log(`${key} セクション: ${shouldHide ? '非表示' : '表示'}`);
   });
+
+  // ナビゲーションボタンのアクティブ状態を更新
   dom.navButtons.forEach((button) => {
     button.classList.toggle(
       'tab-nav__button--active',
       button.dataset.view === view
     );
   });
+
+  // 特定のビューに対する追加処理
+  if (view === 'agreements') {
+    console.log('決め事ビューを表示、現在の決め事数:', state.agreements?.length || 0);
+  }
+
   if (view === 'history' && !dom.historyList.children.length) {
     loadHistory(true);
   }
+
   if (view === 'stats') {
     updateStats();
   }
@@ -299,14 +318,36 @@ function cleanupSubscriptions() {
 }
 
 async function initializeAppData() {
-  await ensureUserProfile();
-  const { dayKey, isLateNight } = getDateInfo();
-  state.todayKey = dayKey;
-  state.isLateNight = isLateNight;
-  await setActiveDay(dayKey);
-  subscribeAgreements();
-  await loadHistory(true);
-  subscribeWeeklyComments();
+  console.log('アプリデータの初期化を開始');
+
+  try {
+    await ensureUserProfile();
+    console.log('ユーザープロフィールを確認');
+
+    const { dayKey, isLateNight } = getDateInfo();
+    state.todayKey = dayKey;
+    state.isLateNight = isLateNight;
+    console.log(`今日の日付: ${dayKey}, 深夜モード: ${isLateNight}`);
+
+    await setActiveDay(dayKey);
+    console.log('今日の日付データを設定');
+
+    // 決め事のサブスクライブ
+    subscribeAgreements();
+
+    // 履歴データの読み込み
+    await loadHistory(true);
+    console.log('履歴データを読み込み');
+
+    // 週次コメントのサブスクライブ
+    subscribeWeeklyComments();
+    console.log('週次コメントをサブスクライブ');
+
+    console.log('アプリデータの初期化完了');
+  } catch (error) {
+    console.error('アプリデータの初期化中にエラー:', error);
+    throw error;
+  }
 }
 
 async function ensureUserProfile() {
@@ -333,41 +374,93 @@ async function ensureUserProfile() {
 }
 
 function subscribeAgreements() {
+  console.log('決め事のサブスクライブを開始');
+
   if (unsubscribers.agreements) {
     unsubscribers.agreements();
     unsubscribers.agreements = null;
   }
-  const agreementsQuery = query(
-    collection(db, 'agreements'),
-    where('status', '==', 'active'),
-    orderBy('pinned', 'desc'),
-    orderBy('order', 'asc')
-  );
-  unsubscribers.agreements = onSnapshot(agreementsQuery, (snapshot) => {
-    if (!snapshot.size && !agreementsSeeded) {
-      seedDefaultAgreements().catch((error) => {
-        agreementsSeeded = false;
-        console.error('Failed to seed agreements', error);
-      });
-    }
-    state.agreements = snapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    }));
+
+  try {
+    const agreementsQuery = query(
+      collection(db, 'agreements'),
+      where('status', '==', 'active'),
+      orderBy('pinned', 'desc'),
+      orderBy('order', 'asc')
+    );
+
+    unsubscribers.agreements = onSnapshot(
+      agreementsQuery,
+      (snapshot) => {
+        console.log(`決め事を${snapshot.size}件取得`);
+
+        if (!snapshot.size && !agreementsSeeded) {
+          console.log('決め事が空のため、デフォルトを設定');
+          seedDefaultAgreements().catch((error) => {
+            agreementsSeeded = false;
+            console.error('決め事の初期設定に失敗:', error);
+            showToast('決め事の初期設定に失敗しました');
+          });
+        }
+
+        state.agreements = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+
+        console.log('決め事リストをレンダリング:', state.agreements);
+        renderAgreementList();
+      },
+      (error) => {
+        console.error('Firestoreから決め事の取得に失敗:', error);
+
+        // エラーの種類に応じたメッセージ
+        let errorMessage = '決め事の読み込みに失敗しました';
+        if (error.code === 'permission-denied') {
+          errorMessage = '決め事にアクセスする権限がありません';
+        } else if (error.code === 'failed-precondition') {
+          errorMessage = 'Firestoreのインデックスが不足しています';
+        } else if (error.message?.includes('offline')) {
+          errorMessage = 'オフラインのため決め事を取得できません';
+        }
+
+        showToast(errorMessage);
+
+        // エラー時でも空のリストを表示
+        state.agreements = [];
+        renderAgreementList();
+      }
+    );
+  } catch (error) {
+    console.error('決め事クエリの作成に失敗:', error);
+    showToast('決め事の読み込み設定に失敗しました');
+
+    // エラー時でも空のリストを表示
+    state.agreements = [];
     renderAgreementList();
-  });
+  }
 }
 
 async function seedDefaultAgreements() {
-  if (!state.profile) return;
+  if (!state.profile) {
+    console.warn('プロフィールがないため、デフォルト決め事を設定できません');
+    return;
+  }
+
+  console.log('デフォルト決め事の設定を開始');
   agreementsSeeded = true;
+
   try {
     let createdCount = 0;
     await Promise.all(
       DEFAULT_AGREEMENTS.map(async (title, index) => {
         const docRef = doc(db, 'agreements', `seed-${index}`);
         const existing = await getDoc(docRef);
-        if (existing.exists()) return;
+        if (existing.exists()) {
+          console.log(`決め事 seed-${index} は既に存在`);
+          return;
+        }
+
         await setDoc(docRef, {
           title,
           body: '',
@@ -379,13 +472,20 @@ async function seedDefaultAgreements() {
           createdBy: state.profile.uid,
           updatedBy: state.profile.uid,
         });
+
+        console.log(`決め事 seed-${index} を作成: ${title}`);
         createdCount += 1;
       })
     );
+
     if (createdCount > 0) {
+      console.log(`${createdCount}件のデフォルト決め事を登録`);
       showToast('夫婦の決め事を初期登録しました');
+    } else {
+      console.log('デフォルト決め事は既に登録済み');
     }
   } catch (error) {
+    console.error('デフォルト決め事の設定に失敗:', error);
     agreementsSeeded = false;
     throw error;
   }
@@ -393,12 +493,28 @@ async function seedDefaultAgreements() {
 
 function renderAgreementList() {
   const items = state.agreements || [];
-  dom.agreementList.innerHTML = '';
-  if (!items.length) {
-    dom.agreementEmpty.classList.remove('hidden');
+
+  console.log(`決め事リストをレンダリング: ${items.length}件`);
+
+  // DOM要素の存在確認
+  if (!dom.agreementList) {
+    console.error('決め事リストのDOM要素が見つかりません');
     return;
   }
-  dom.agreementEmpty.classList.add('hidden');
+
+  dom.agreementList.innerHTML = '';
+
+  if (!items.length) {
+    if (dom.agreementEmpty) {
+      dom.agreementEmpty.classList.remove('hidden');
+    }
+    return;
+  }
+
+  if (dom.agreementEmpty) {
+    dom.agreementEmpty.classList.add('hidden');
+  }
+
   items.forEach((item) => {
     const li = document.createElement('li');
     li.className = 'agreement-item';
@@ -760,6 +876,13 @@ async function archiveAgreement(id) {
 }
 
 function setupAgreementHandlers() {
+  console.log('決め事ハンドラーを設定');
+
+  if (!dom.addAgreement) {
+    console.error('決め事追加ボタンが見つかりません');
+    return;
+  }
+
   dom.addAgreement.addEventListener('click', () =>
     openAgreementModal(MODAL_MODE.CREATE)
   );
@@ -1004,11 +1127,13 @@ function updateChart(days) {
 
 function bindGlobalEvents() {
   dom.loginButton.addEventListener('click', async () => {
+    console.log('Googleログインを開始');
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      console.log('ログイン成功:', result.user.email);
     } catch (error) {
-      console.error(error);
+      console.error('ログインエラー:', error);
       showToast('ログインに失敗しました');
     }
   });
