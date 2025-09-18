@@ -17,32 +17,35 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: isAllowedUser();
-      allow create: isAllowedUser() && request.auth.uid == userId;
-      allow update: isAllowedUser() && request.auth.uid == userId;
+      allow read: if isAllowedUser();
+      allow create: if isAllowedUser() && request.auth.uid == userId;
+      allow update: if isAllowedUser() && request.auth.uid == userId;
+      allow delete: if false;
     }
 
     match /agreements/{agreementId} {
-      allow read: isAllowedUser();
-      allow create: isAllowedUser();
-      allow update: isAllowedUser();
-      allow delete: isMaster();
+      allow read: if isAllowedUser();
+      allow create: if isAllowedUser();
+      allow update: if isAllowedUser();
+      allow delete: if isMaster();
     }
 
     match /days/{dayId} {
-      allow read: isAllowedUser();
-      allow create: isAllowedUser();
-      allow update: isAllowedUser();
-      allow delete: isMaster();
+      allow read: if isAllowedUser();
+      allow create: if isAllowedUser();
+      allow update: if isAllowedUser();
+      allow delete: if isMaster();
 
       match /entries/{entryId} {
-        allow read: isAllowedUser();
-        allow create, update, delete: isAllowedUser() && request.auth.uid == entryId;
+        allow read: if isAllowedUser();
+        allow create: if isAllowedUser() && request.auth.uid == entryId;
+        allow update: if isAllowedUser() && request.auth.uid == entryId;
+        allow delete: if isAllowedUser() && request.auth.uid == entryId;
       }
     }
 
     match /weeklyComments/{commentId} {
-      allow read: isAllowedUser();
+      allow read: if isAllowedUser();
       allow write: if false;
     }
   }
