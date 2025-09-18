@@ -134,3 +134,18 @@ executed_commands:
 next_actions: []
 git_commit: feat: add service worker caching
 +git_push: pending
+---
+timestamp: 2025-09-18T16:28:00+09:00
+branch: main
+latest_commit: pending
+diff_summary:
+  - overhaul mobile navigation with tab bar
+  - simplify agreements view and enable long-press editing
+  - split history/statistics into dedicated views
+  - register service worker for cache control (already deployed)
+executed_commands:
+  - npm run format (pass)
+  - firebase deploy --only hosting (pass)
+next_actions: []
+git_commit: feat: optimize mobile navigation and agreements
++git_push: pending

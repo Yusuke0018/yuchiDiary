@@ -58,11 +58,11 @@ const state = {
   todayKey: null,
   isLateNight: false,
   agreements: [],
-  showAllAgreements: false,
   historyCursor: null,
   historyHasMore: true,
   historyBatch: APP_SETTINGS.ui?.maxHistoryBatch || 14,
   chart: null,
+  activeView: 'today',
 };
 
 const unsubscribers = {
@@ -81,7 +81,6 @@ const dom = {
   main: document.getElementById('main-content'),
   agreementList: document.getElementById('agreement-list'),
   agreementEmpty: document.getElementById('agreement-empty'),
-  toggleAgreementView: document.getElementById('toggle-agreement-view'),
   addAgreement: document.getElementById('add-agreement'),
   modalBackdrop: document.getElementById('modal-backdrop'),
   modalTitle: document.getElementById('modal-title'),
@@ -108,12 +107,14 @@ const dom = {
   weeklyCurrent: document.getElementById('weekly-comment-current'),
   weeklyHistory: document.getElementById('weekly-comment-history'),
   toast: document.getElementById('toast'),
-};
-
-const AGREEMENT_ACTIONS = {
-  EDIT: 'edit',
-  TOGGLE_PIN: 'toggle-pin',
-  ARCHIVE: 'archive',
+  navButtons: document.querySelectorAll('.tab-nav__button'),
+  viewSections: {
+    today: document.querySelector('[data-view="today"]'),
+    agreements: document.querySelector('[data-view="agreements"]'),
+    history: document.querySelector('[data-view="history"]'),
+    stats: document.querySelector('[data-view="stats"]'),
+  },
+  modalDelete: document.getElementById('modal-delete'),
 };
 
 const DEFAULT_AGREEMENTS = [
@@ -143,6 +144,8 @@ const MODAL_MODE = {
 let modalMode = MODAL_MODE.CREATE;
 let editingAgreementId = null;
 let agreementsSeeded = false;
+let agreementPressTimer = null;
+let agreementPressTargetId = null;
 
 function showToast(message, duration = 2800) {
   dom.toast.textContent = message;
@@ -191,6 +194,26 @@ function getUserMetaByEmail(email) {
   return userIndex.get(email) || null;
 }
 
+function setActiveView(view) {
+  if (!dom.viewSections[view]) return;
+  state.activeView = view;
+  Object.entries(dom.viewSections).forEach(([key, section]) => {
+    section.classList.toggle('hidden', key !== view);
+  });
+  dom.navButtons.forEach((button) => {
+    button.classList.toggle(
+      'tab-nav__button--active',
+      button.dataset.view === view
+    );
+  });
+  if (view === 'history' && !dom.historyList.children.length) {
+    loadHistory(true);
+  }
+  if (view === 'stats') {
+    updateStats();
+  }
+}
+
 function handleAuthState(user) {
   state.authUser = user;
   if (user) {
@@ -211,10 +234,14 @@ function handleAuthState(user) {
     dom.loginButton.classList.add('hidden');
     dom.signedOut.classList.add('hidden');
     dom.main.classList.remove('hidden');
-    initializeAppData().catch((error) => {
-      console.error(error);
-      showToast('初期化中にエラーが発生しました');
-    });
+    initializeAppData()
+      .then(() => {
+        setActiveView('today');
+      })
+      .catch((error) => {
+        console.error(error);
+        showToast('初期化中にエラーが発生しました');
+      });
   } else {
     cleanupSubscriptions();
     state.profile = null;
@@ -232,6 +259,7 @@ function handleAuthState(user) {
       state.chart.destroy();
       state.chart = null;
     }
+    setActiveView('today');
   }
 }
 
@@ -339,41 +367,21 @@ async function seedDefaultAgreements() {
 
 function renderAgreementList() {
   const items = state.agreements || [];
-  dom.toggleAgreementView.textContent = state.showAllAgreements
-    ? '先頭のみ表示'
-    : 'すべて表示';
   dom.agreementList.innerHTML = '';
   if (!items.length) {
     dom.agreementEmpty.classList.remove('hidden');
     return;
   }
   dom.agreementEmpty.classList.add('hidden');
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     const li = document.createElement('li');
     li.className = 'agreement-item';
     li.dataset.id = item.id;
-    li.draggable = true;
-    if (item.pinned) {
-      li.classList.add('agreement-item--pinned');
-    }
-    if (!state.showAllAgreements && index > 0) {
-      li.classList.add('agreement-item--collapsed');
-    }
-    const metaLabel = item.pinned
-      ? 'ピン留め中'
-      : `更新 ${formatDate(item.updatedAt)}`;
     li.innerHTML = `
-      <div class="agreement-item__meta">
-        <span>${metaLabel}</span>
-      </div>
-      <h3 class="agreement-item__title">${escapeHtml(item.title)}</h3>
-      <p class="agreement-item__body">${escapeHtml(item.body)}</p>
-      <div class="agreement-item__actions">
-        <button type="button" class="button button--ghost" data-action="${AGREEMENT_ACTIONS.EDIT}">編集</button>
-        <button type="button" class="button button--ghost" data-action="${AGREEMENT_ACTIONS.TOGGLE_PIN}">
-          ${item.pinned ? 'ピン解除' : 'ピン留め'}
-        </button>
-        <button type="button" class="button button--ghost" data-action="${AGREEMENT_ACTIONS.ARCHIVE}">アーカイブ</button>
+      ${item.pinned ? '<span class="agreement-item__pin">★</span>' : ''}
+      <div class="agreement-item__content">
+        <p class="agreement-item__title-text">${escapeHtml(item.title)}</p>
+        ${item.body ? `<p class="agreement-item__note">${escapeHtml(item.body)}</p>` : ''}
       </div>
     `;
     dom.agreementList.appendChild(li);
@@ -660,20 +668,13 @@ function scoreLabel(score) {
   return option ? option.label : '-';
 }
 
-function renderAgreementsCollapsedState() {
-  dom.toggleAgreementView.textContent = state.showAllAgreements
-    ? '先頭のみ表示'
-    : 'すべて表示';
-  renderAgreementList();
-}
-
 async function handleAgreementSubmit(event) {
   event.preventDefault();
   const formData = new FormData(dom.modalForm);
   const title = formData.get('title')?.toString().trim();
-  const body = formData.get('body')?.toString().trim();
-  if (!title || !body) {
-    showToast('タイトルと本文を入力してください');
+  const body = formData.get('body')?.toString().trim() || '';
+  if (!title) {
+    showToast('タイトルを入力してください');
     return;
   }
   if (!state.profile) return;
@@ -723,15 +724,6 @@ function openAgreementModal(mode, agreement = null) {
   toggleModal(true);
 }
 
-async function updateAgreementPin(id, pinned) {
-  await updateDoc(doc(db, 'agreements', id), {
-    pinned,
-    updatedAt: serverTimestamp(),
-    updatedBy: state.profile.uid,
-  });
-  showToast(pinned ? 'ピン留めしました' : 'ピンを外しました');
-}
-
 async function archiveAgreement(id) {
   await updateDoc(doc(db, 'agreements', id), {
     status: 'archived',
@@ -742,102 +734,54 @@ async function archiveAgreement(id) {
 }
 
 function setupAgreementHandlers() {
-  dom.toggleAgreementView.addEventListener('click', () => {
-    state.showAllAgreements = !state.showAllAgreements;
-    renderAgreementsCollapsedState();
-  });
   dom.addAgreement.addEventListener('click', () =>
     openAgreementModal(MODAL_MODE.CREATE)
   );
   dom.modalCancel.addEventListener('click', () => toggleModal(false));
   dom.modalForm.addEventListener('submit', handleAgreementSubmit);
-  dom.agreementList.addEventListener('click', (event) => {
-    const action = event.target.dataset.action;
-    if (!action) return;
-    const item = event.target.closest('.agreement-item');
-    if (!item) return;
-    const agreement = state.agreements.find((ag) => ag.id === item.dataset.id);
-    if (!agreement) return;
-    if (action === AGREEMENT_ACTIONS.EDIT) {
-      openAgreementModal(MODAL_MODE.EDIT, agreement);
-    } else if (action === AGREEMENT_ACTIONS.TOGGLE_PIN) {
-      updateAgreementPin(agreement.id, !agreement.pinned);
-    } else if (action === AGREEMENT_ACTIONS.ARCHIVE) {
-      if (state.profile?.role !== 'master') {
-        showToast('アーカイブはマスターのみ可能です');
-        return;
-      }
-      if (window.confirm('決め事をアーカイブしますか？')) {
-        archiveAgreement(agreement.id);
-      }
+  dom.modalDelete.addEventListener('click', () => {
+    if (!editingAgreementId) return;
+    if (state.profile?.role !== 'master') {
+      showToast('削除はマスターのみ可能です');
+      return;
+    }
+    if (window.confirm('決め事を削除しますか？')) {
+      archiveAgreement(editingAgreementId).then(() => {
+        toggleModal(false);
+      });
     }
   });
-  enableAgreementDragAndDrop();
-}
-
-function enableAgreementDragAndDrop() {
-  dom.agreementList.addEventListener('dragstart', (event) => {
+  dom.agreementList.addEventListener('pointerdown', (event) => {
     const item = event.target.closest('.agreement-item');
     if (!item) return;
-    item.classList.add('dragging');
-  });
-  dom.agreementList.addEventListener('dragend', (event) => {
-    const item = event.target.closest('.agreement-item');
-    if (!item) return;
-    item.classList.remove('dragging');
-  });
-  dom.agreementList.addEventListener('dragover', (event) => {
-    event.preventDefault();
-    const afterElement = getDragAfterElement(dom.agreementList, event.clientY);
-    const draggable = dom.agreementList.querySelector('.dragging');
-    if (!draggable) return;
-    if (afterElement == null) {
-      dom.agreementList.appendChild(draggable);
-    } else {
-      dom.agreementList.insertBefore(draggable, afterElement);
-    }
-  });
-  dom.agreementList.addEventListener('drop', async () => {
-    if (!state.profile) return;
-    try {
-      const newOrder = Array.from(dom.agreementList.children).map(
-        (item, index) => ({
-          id: item.dataset.id,
-          order: (index + 1) * 100,
-        })
+    agreementPressTargetId = item.dataset.id;
+    agreementPressTimer = window.setTimeout(() => {
+      agreementPressTimer = null;
+      const agreement = state.agreements.find(
+        (ag) => ag.id === agreementPressTargetId
       );
-      await Promise.all(
-        newOrder.map((item) =>
-          updateDoc(doc(db, 'agreements', item.id), {
-            order: item.order,
-            updatedAt: serverTimestamp(),
-            updatedBy: state.profile.uid,
-          })
-        )
-      );
-      showToast('決め事の順番を更新しました');
-    } catch (error) {
-      console.error(error);
-      showToast('並び替えの保存に失敗しました');
+      if (agreement) {
+        openAgreementModal(MODAL_MODE.EDIT, agreement);
+      }
+    }, 550);
+  });
+  const cancelAgreementPress = () => {
+    if (agreementPressTimer) {
+      clearTimeout(agreementPressTimer);
+      agreementPressTimer = null;
+      agreementPressTargetId = null;
+    }
+  };
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((type) => {
+    dom.agreementList.addEventListener(type, cancelAgreementPress);
+  });
+  dom.agreementList.addEventListener('pointermove', (event) => {
+    if (!agreementPressTimer) return;
+    const item = event.target.closest('.agreement-item');
+    if (!item || item.dataset.id !== agreementPressTargetId) {
+      cancelAgreementPress();
     }
   });
-}
-
-function getDragAfterElement(container, y) {
-  const draggableElements = [
-    ...container.querySelectorAll('.agreement-item:not(.dragging)'),
-  ];
-  return draggableElements.reduce(
-    (closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) {
-        return { offset, element: child };
-      }
-      return closest;
-    },
-    { offset: Number.NEGATIVE_INFINITY }
-  ).element;
 }
 
 async function handleThanksClick() {
@@ -1051,6 +995,15 @@ function bindGlobalEvents() {
     if (state.todayKey) {
       setActiveDay(state.todayKey);
     }
+    setActiveView('today');
+  });
+  dom.navButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const view = button.dataset.view;
+      if (view) {
+        setActiveView(view);
+      }
+    });
   });
   setupAgreementHandlers();
   dom.modalBackdrop.addEventListener('click', (event) => {
@@ -1062,6 +1015,7 @@ function bindGlobalEvents() {
 
 async function bootstrap() {
   bindGlobalEvents();
+  setActiveView('today');
   await setPersistence(auth, browserLocalPersistence);
   onAuthStateChanged(auth, handleAuthState);
 }

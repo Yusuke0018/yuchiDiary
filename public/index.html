@@ -18,7 +18,6 @@
       <header class="app__header">
         <div class="brand">
           <span class="brand__logo">ゆうちいダイアリー</span>
-          <span class="brand__tagline">今日の気持ちと感謝を分かち合う場所</span>
         </div>
         <div id="auth-area" class="auth">
           <button id="login-button" class="button button--primary">
@@ -34,59 +33,37 @@
       </header>
 
       <main id="main-content" class="main hidden" aria-live="polite">
-        <section id="agreements-section" class="card-section">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">夫婦の決め事</h2>
-              <p class="section-subtitle">
-                先頭の1件を常に表示します。編集はお二人とも可能です。
-              </p>
-            </div>
-            <div class="section-actions">
-              <button
-                id="toggle-agreement-view"
-                class="button button--ghost"
-                type="button"
-              >
-                すべて表示
-              </button>
-              <button
-                id="add-agreement"
-                class="button button--primary"
-                type="button"
-              >
-                新しい決め事
-              </button>
-            </div>
-          </div>
-          <ul
-            id="agreement-list"
-            class="agreement-list"
-            aria-live="polite"
-          ></ul>
-          <p id="agreement-empty" class="empty-message hidden">
-            まだ決め事がありません。お二人の大切な約束を追加しましょう。
-          </p>
-        </section>
+        <nav class="tab-nav" aria-label="画面切り替え">
+          <button
+            class="tab-nav__button tab-nav__button--active"
+            type="button"
+            data-view="today"
+          >
+            今日
+          </button>
+          <button class="tab-nav__button" type="button" data-view="agreements">
+            決め事
+          </button>
+          <button class="tab-nav__button" type="button" data-view="history">
+            履歴
+          </button>
+          <button class="tab-nav__button" type="button" data-view="stats">
+            統計
+          </button>
+        </nav>
 
-        <section id="day-section" class="card-section">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title" id="day-title">今日のスレッド</h2>
-              <p class="section-subtitle">
-                入力は当日内と翌日1:00まで可能です。過去のスレッドは履歴から開けます。
-              </p>
-            </div>
-            <div class="section-actions">
-              <button
-                id="jump-today"
-                class="button button--ghost"
-                type="button"
-              >
-                今日に戻る
-              </button>
-            </div>
+        <section
+          id="day-section"
+          class="card-section view-section"
+          data-view="today"
+        >
+          <div class="section-header section-header--compact">
+            <h2 class="section-title" id="day-title">今日のスレッド</h2>
+            <button id="jump-today" class="button button--ghost" type="button">
+              今日に戻る
+            </button>
           </div>
+          <p class="section-caption">入力は当日と翌日1:00まで可能です。</p>
           <div id="day-meta" class="day-meta"></div>
           <div class="entry-grid">
             <div class="entry-card" id="entry-master"></div>
@@ -119,14 +96,39 @@
           </div>
         </section>
 
-        <section id="history-section" class="card-section">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">履歴</h2>
-              <p class="section-subtitle">
-                過去のスレッドを開いて振り返りや編集ができます。
-              </p>
-            </div>
+        <section
+          id="agreements-section"
+          class="card-section view-section hidden"
+          data-view="agreements"
+        >
+          <div class="section-header section-header--compact">
+            <h2 class="section-title">夫婦の決め事</h2>
+            <button
+              id="add-agreement"
+              class="button button--primary button--icon"
+              type="button"
+            >
+              ＋新規
+            </button>
+          </div>
+          <p class="section-caption">長押しすると編集や削除ができます。</p>
+          <ul
+            id="agreement-list"
+            class="agreement-list"
+            aria-live="polite"
+          ></ul>
+          <p id="agreement-empty" class="empty-message hidden">
+            まだ決め事がありません。右上のボタンで追加してください。
+          </p>
+        </section>
+
+        <section
+          id="history-section"
+          class="card-section view-section hidden"
+          data-view="history"
+        >
+          <div class="section-header section-header--compact">
+            <h2 class="section-title">履歴</h2>
           </div>
           <ul id="history-list" class="history-list" aria-live="polite"></ul>
           <button
@@ -138,8 +140,12 @@
           </button>
         </section>
 
-        <section id="stats-section" class="card-section">
-          <div class="section-header">
+        <section
+          id="stats-section"
+          class="card-section view-section hidden"
+          data-view="stats"
+        >
+          <div class="section-header section-header--compact">
             <h2 class="section-title">統計</h2>
           </div>
           <div class="stats-grid">
@@ -164,19 +170,11 @@
             height="220"
             aria-label="スコア推移グラフ"
           ></canvas>
-        </section>
-
-        <section id="weekly-comment-section" class="card-section">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">週次AIコメント</h2>
-              <p class="section-subtitle">
-                毎週日曜0:00に自動で生成されます。温かい振り返りを楽しんでください。
-              </p>
-            </div>
+          <div class="weekly-card">
+            <h3 class="weekly-card__title">週次AIコメント</h3>
+            <div id="weekly-comment-current" class="weekly-comment"></div>
+            <ul id="weekly-comment-history" class="weekly-comment-history"></ul>
           </div>
-          <div id="weekly-comment-current" class="weekly-comment"></div>
-          <ul id="weekly-comment-history" class="weekly-comment-history"></ul>
         </section>
       </main>
 
@@ -211,10 +209,16 @@
               name="body"
               rows="5"
               maxlength="500"
-              required
             ></textarea>
           </label>
           <div class="modal__actions">
+            <button
+              type="button"
+              id="modal-delete"
+              class="button button--danger hidden"
+            >
+              削除
+            </button>
             <button
               type="button"
               id="modal-cancel"

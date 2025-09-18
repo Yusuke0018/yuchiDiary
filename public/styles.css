@@ -36,6 +36,42 @@ body {
   margin-bottom: 32px;
 }
 
+.tab-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  background: var(--background);
+  position: sticky;
+  top: 0;
+  padding: 0 0 12px;
+  z-index: 6;
+}
+
+.tab-nav__button {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  box-shadow: inset 0 0 0 1px rgba(227, 131, 131, 0.16);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.tab-nav__button--active {
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    var(--accent-strong) 100%
+  );
+  color: #fff;
+  box-shadow: 0 12px 20px rgba(227, 131, 131, 0.28);
+}
+
 .brand__logo {
   font-size: 1.9rem;
   font-weight: 700;
@@ -90,10 +126,18 @@ body {
   font-size: 1.4rem;
 }
 
-.section-subtitle {
-  margin: 4px 0 0;
+.section-header--compact {
+  align-items: center;
+}
+
+.section-caption {
+  margin: 8px 0 16px;
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+}
+
+.view-section.hidden {
+  display: none;
 }
 
 .section-actions {
@@ -142,6 +186,17 @@ body {
   box-shadow: 0 12px 24px rgba(229, 162, 120, 0.28);
 }
 
+.button--icon {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
+
+.button--danger {
+  background: #f6d6d6;
+  color: #b04242;
+  box-shadow: inset 0 0 0 1px rgba(231, 120, 120, 0.4);
+}
+
 .button:hover:not(:disabled) {
   transform: translateY(-1px);
 }
@@ -149,58 +204,48 @@ body {
 .agreement-list {
   list-style: none;
   padding: 0;
-  margin: 24px 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.agreement-item {
-  background: var(--surface-alt);
-  border-radius: var(--radius);
-  padding: 20px;
-  border: 1px solid transparent;
+  margin: 16px 0 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.agreement-item--pinned {
-  border-color: rgba(227, 131, 131, 0.45);
-}
-
-.agreement-item--collapsed {
-  display: none;
-}
-
-.agreement-item.dragging {
-  opacity: 0.6;
-  border-style: dashed;
-}
-
-.agreement-item__meta {
+.agreement-item {
+  position: relative;
+  background: var(--surface-alt);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  border: 1px solid rgba(227, 131, 131, 0.2);
   display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 0.85rem;
+  gap: 12px;
+  align-items: flex-start;
+  touch-action: manipulation;
 }
 
-.agreement-item__title {
-  margin: 0;
+.agreement-item__pin {
+  color: var(--accent-strong);
   font-size: 1.1rem;
+  line-height: 1;
 }
 
-.agreement-item__body {
+.agreement-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.agreement-item__title-text {
   margin: 0;
-  line-height: 1.6;
-  white-space: pre-wrap;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
-.agreement-item__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.agreement-item__note {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .empty-message {
@@ -350,11 +395,24 @@ body {
   margin-top: 4px;
 }
 
-.weekly-comment {
-  background: var(--surface-alt);
-  padding: 20px;
-  border-radius: var(--radius);
+.weekly-card {
   margin-top: 20px;
+  background: var(--surface-alt);
+  border-radius: var(--radius);
+  padding: 18px;
+  border: 1px solid rgba(227, 131, 131, 0.2);
+}
+
+.weekly-card__title {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.weekly-comment {
+  background: #fff;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(227, 131, 131, 0.16);
 }
 
 .weekly-comment__week {
@@ -371,16 +429,17 @@ body {
 .weekly-comment-history {
   list-style: none;
   padding: 0;
-  margin: 20px 0 0;
+  margin: 16px 0 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .weekly-comment-history li {
-  background: var(--surface-alt);
-  padding: 16px;
+  background: #fff;
+  padding: 14px;
   border-radius: var(--radius);
+  border: 1px solid rgba(227, 131, 131, 0.16);
 }
 
 .signed-out {
@@ -432,6 +491,10 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+#modal-delete {
+  margin-right: auto;
 }
 
 .toast {
