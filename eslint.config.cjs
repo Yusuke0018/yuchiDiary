@@ -4,7 +4,13 @@ const globals = require('globals');
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'functions/node_modules/**', '.firebase/**', '.codex/logs/**'],
+    ignores: [
+      'node_modules/**',
+      'functions/node_modules/**',
+      '.firebase/**',
+      '.codex/logs/**',
+      'dist/**',
+    ],
   },
   {
     ...js.configs.recommended,

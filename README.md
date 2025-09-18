@@ -47,7 +47,7 @@
    firebase use YOUR_PROJECT_ID
    ```
 
-7. Firestore ルールとインデックス、クラウド関数、Hosting をデプロイします。
+7. Firestore ルールとインデックス、クラウド関数、Hosting をデプロイします。`firebase.json` の `predeploy` 設定により、デプロイ直前にハッシュ付き静的アセットのビルドと `version.txt` の生成が自動実行されます。
 
    ```bash
    firebase deploy --only firestore:rules,firestore:indexes,functions,hosting
@@ -66,7 +66,16 @@
 - `npm run format` : Prettier でコード整形
 - `npm run lint` : ESLint チェック
 - `npm test` : 現状は `npm run lint` を呼び出します
+- `npm run build` : `dist/` にハッシュ付き静的資産と `version.txt` を出力
+- `npm run deploy` : ビルド後に `firebase deploy` を実行
 - `npm --prefix functions run lint` : Functions ディレクトリのチェック
+
+## 自動更新について
+
+- ビルド時に `styles.css` と `scripts/app.js` は内容ハッシュ付きファイル名へ変換され、Firebase Hosting には `dist/` 配下の最新アセットが公開されます。
+- ルートに生成される `version.txt` にはコミットIDとビルド時刻が JSON で保存され、`Cache-Control: no-store` で配信されます。
+- フロントエンドは一定間隔で `version.txt` を取得し、差分を検知するとユーザーが離席（タブが非表示）したタイミング、または一定時間アイドルになったタイミングで自動的にリロードします。
+- `public/app-config.js` の `autoUpdate` セクション、または `window.__YUCHI_DIARY_DISABLE_AUTO_UPDATE = true;` を宣言することで自動更新を無効化できます。チェック間隔やアイドル待ち時間も設定から変更できます。
 
 ## 注意事項
 

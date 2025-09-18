@@ -90,6 +90,14 @@ const state = {
   historyLoadedMonths: {},
   historySelectedDay: null,
   historyDayEntries: {},
+  autoUpdate: {
+    currentVersion: null,
+    pendingVersion: null,
+    checkTimerId: null,
+    idleTimerId: null,
+    visibilityHandler: null,
+    reloadPending: false,
+  },
   chart: null,
   activeView: 'today',
 };
@@ -100,6 +108,41 @@ const unsubscribers = {
   entries: null,
   weeklyComments: null,
 };
+
+const autoUpdateConfig = (() => {
+  const base = {
+    enabled: true,
+    checkIntervalMs: 5 * 60 * 1000,
+    idleReloadDelayMs: 60 * 1000,
+    endpoint: 'version.txt',
+  };
+  if (APP_SETTINGS && APP_SETTINGS.autoUpdate) {
+    const cfg = APP_SETTINGS.autoUpdate;
+    if (Object.prototype.hasOwnProperty.call(cfg, 'enabled')) {
+      base.enabled = Boolean(cfg.enabled);
+    }
+    if (typeof cfg.checkIntervalMs === 'number' && cfg.checkIntervalMs > 0) {
+      base.checkIntervalMs = cfg.checkIntervalMs;
+    }
+    if (
+      typeof cfg.idleReloadDelayMs === 'number' &&
+      cfg.idleReloadDelayMs > 0
+    ) {
+      base.idleReloadDelayMs = cfg.idleReloadDelayMs;
+    }
+    if (typeof cfg.endpoint === 'string' && cfg.endpoint.trim()) {
+      base.endpoint = cfg.endpoint.trim();
+    }
+  }
+  if (
+    typeof window !== 'undefined' &&
+    window &&
+    window.__YUCHI_DIARY_DISABLE_AUTO_UPDATE === true
+  ) {
+    base.enabled = false;
+  }
+  return base;
+})();
 
 function collectViewSections() {
   const sections = {};
@@ -114,6 +157,171 @@ function collectViewSections() {
     }
   });
   return sections;
+}
+
+function parseVersionDescriptor(text) {
+  if (!text) {
+    return null;
+  }
+  const trimmed = String(text).trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    console.info('version.txt は JSON 解析に失敗したため、key=value 形式で処理します。', error);
+    const lines = trimmed.split(/\r?\n/);
+    const descriptor = {};
+    lines.forEach((line) => {
+      const cleaned = line.trim();
+      if (!cleaned || cleaned.startsWith('#')) {
+        return;
+      }
+      const separatorIndex = cleaned.indexOf('=');
+      if (separatorIndex === -1) {
+        return;
+      }
+      const key = cleaned.slice(0, separatorIndex).trim();
+      const value = cleaned.slice(separatorIndex + 1).trim();
+      if (key) {
+        descriptor[key] = value;
+      }
+    });
+    if (!descriptor.version && descriptor.commit) {
+      descriptor.version = descriptor.commit;
+    }
+    return Object.keys(descriptor).length ? descriptor : null;
+  }
+}
+
+async function fetchVersionDescriptor() {
+  try {
+    const endpoint = autoUpdateConfig.endpoint || 'version.txt';
+    const response = await fetch(`${endpoint}?t=${Date.now()}`, {
+      cache: 'no-store',
+    });
+    if (!response.ok) {
+      throw new Error(`Version request failed: ${response.status}`);
+    }
+    const text = await response.text();
+    return parseVersionDescriptor(text);
+  } catch (error) {
+    console.info('バージョン情報の取得に失敗しました', error);
+    return null;
+  }
+}
+
+function clearAutoUpdatePolling() {
+  if (state.autoUpdate && state.autoUpdate.checkTimerId) {
+    clearTimeout(state.autoUpdate.checkTimerId);
+    state.autoUpdate.checkTimerId = null;
+  }
+}
+
+function clearAutoUpdateReloadGuards() {
+  if (state.autoUpdate && state.autoUpdate.idleTimerId) {
+    clearTimeout(state.autoUpdate.idleTimerId);
+    state.autoUpdate.idleTimerId = null;
+  }
+  if (state.autoUpdate && state.autoUpdate.visibilityHandler) {
+    document.removeEventListener(
+      'visibilitychange',
+      state.autoUpdate.visibilityHandler
+    );
+    state.autoUpdate.visibilityHandler = null;
+  }
+}
+
+function scheduleAutoUpdateCheck(delay) {
+  if (!autoUpdateConfig.enabled || !state.autoUpdate) {
+    return;
+  }
+  const interval =
+    typeof delay === 'number' && delay > 0
+      ? delay
+      : autoUpdateConfig.checkIntervalMs;
+  clearAutoUpdatePolling();
+  state.autoUpdate.checkTimerId = setTimeout(() => {
+    executeAutoUpdateCheck().catch((error) => {
+      console.info('自動更新チェックに失敗しました', error);
+      scheduleAutoUpdateCheck();
+    });
+  }, interval);
+}
+
+async function executeAutoUpdateCheck() {
+  if (!autoUpdateConfig.enabled || !state.autoUpdate) {
+    return;
+  }
+  state.autoUpdate.checkTimerId = null;
+  const descriptor = await fetchVersionDescriptor();
+  if (!descriptor || !descriptor.version) {
+    scheduleAutoUpdateCheck();
+    return;
+  }
+  if (!state.autoUpdate.currentVersion) {
+    state.autoUpdate.currentVersion = descriptor.version;
+    scheduleAutoUpdateCheck();
+    return;
+  }
+  if (descriptor.version === state.autoUpdate.currentVersion) {
+    scheduleAutoUpdateCheck();
+    return;
+  }
+  state.autoUpdate.pendingVersion = descriptor;
+  notifyAutoUpdateAvailable();
+}
+
+function reloadToLatest() {
+  clearAutoUpdatePolling();
+  clearAutoUpdateReloadGuards();
+  window.location.reload();
+}
+
+function attemptAutoReloadWhenIdle() {
+  if (!state.autoUpdate) {
+    return;
+  }
+  if (document.visibilityState === 'hidden') {
+    reloadToLatest();
+    return;
+  }
+  if (!state.autoUpdate.visibilityHandler) {
+    const handler = () => {
+      if (document.visibilityState === 'hidden') {
+        reloadToLatest();
+      }
+    };
+    state.autoUpdate.visibilityHandler = handler;
+    document.addEventListener('visibilitychange', handler);
+  }
+  clearTimeout(state.autoUpdate.idleTimerId);
+  state.autoUpdate.idleTimerId = setTimeout(() => {
+    reloadToLatest();
+  }, autoUpdateConfig.idleReloadDelayMs);
+}
+
+function notifyAutoUpdateAvailable() {
+  if (!state.autoUpdate || state.autoUpdate.reloadPending) {
+    return;
+  }
+  state.autoUpdate.reloadPending = true;
+  if (typeof showToast === 'function') {
+    showToast('新しいバージョンを準備中です…');
+  }
+  attemptAutoReloadWhenIdle();
+}
+
+async function initializeAutoUpdateMonitor() {
+  if (!autoUpdateConfig.enabled || !state.autoUpdate) {
+    return;
+  }
+  const descriptor = await fetchVersionDescriptor();
+  if (descriptor && descriptor.version) {
+    state.autoUpdate.currentVersion = descriptor.version;
+  }
+  scheduleAutoUpdateCheck(autoUpdateConfig.checkIntervalMs);
 }
 
 const dom = {
@@ -1734,6 +1942,7 @@ async function bootstrap() {
     }
 
     bindGlobalEvents();
+    await initializeAutoUpdateMonitor();
     setActiveView('today');
     await setPersistence(auth, browserLocalPersistence);
     onAuthStateChanged(auth, handleAuthState);

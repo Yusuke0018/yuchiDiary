@@ -17,4 +17,9 @@ export const APP_SETTINGS = {
   ui: {
     maxHistoryBatch: 14,
   },
+  autoUpdate: {
+    enabled: true,
+    checkIntervalMs: 5 * 60 * 1000,
+    idleReloadDelayMs: 60 * 1000,
+  },
 };

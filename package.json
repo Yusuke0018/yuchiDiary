@@ -7,7 +7,9 @@
   "scripts": {
     "format": "prettier --write \"**/*.{js,ts,json,css,html,md}\"",
     "lint": "eslint .",
-    "test": "npm run lint"
+    "test": "npm run lint",
+    "build": "node tools/build.js",
+    "deploy": "npm run build && firebase deploy"
   },
   "repository": {
     "type": "git",
