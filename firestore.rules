@@ -8,7 +8,7 @@ service cloud.firestore {
     function isAllowedUser() {
       return isSignedIn() && (
         request.auth.token.email == 'youyou00181002@gmail.com' ||
-        request.auth.token.email == 'REPLACE_WITH_CHII_EMAIL'
+        request.auth.token.email == 'tanachi1102@gmail.com'
       );
     }
 

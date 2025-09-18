@@ -12,7 +12,7 @@ const db = admin.firestore();
 const FIELD_VALUE = admin.firestore.FieldValue;
 const ALLOWED_EMAILS = new Set([
   'youyou00181002@gmail.com',
-  'REPLACE_WITH_CHII_EMAIL',
+  'tanachi1102@gmail.com',
 ]);
 
 function ensureAllowed(auth) {

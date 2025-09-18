@@ -5,7 +5,7 @@ export const APP_USERS = [
     role: 'master',
   },
   {
-    email: 'REPLACE_WITH_CHII_EMAIL',
+    email: 'tanachi1102@gmail.com',
     displayName: '大岩千里',
     role: 'chii',
   },
