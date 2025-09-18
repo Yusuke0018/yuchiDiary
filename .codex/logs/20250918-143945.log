@@ -86,3 +86,16 @@ executed_commands:
 next_actions: []
 git_commit: feat: add pwa manifest and icons
 +git_push: pending
+---
+timestamp: 2025-09-18T16:05:00+09:00
+branch: main
+latest_commit: pending
+diff_summary:
+  - remove Luxon week override causing login failure
+  - add mobile-web-app meta tag for PWA warning
+executed_commands:
+  - npm run format (pass)
+  - firebase deploy --only hosting (pass)
+next_actions: []
+git_commit: fix: stabilise luxon settings for login
++git_push: pending

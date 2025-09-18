@@ -38,10 +38,6 @@ const { DateTime, Settings } = luxon;
 
 Settings.defaultLocale = 'ja-JP';
 Settings.defaultZone = APP_SETTINGS.timezone;
-Settings.defaultWeekSettings = {
-  firstDay: 7, // Sunday
-  minimalDaysInFirstWeek: 1,
-};
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
