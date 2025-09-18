@@ -323,6 +323,88 @@ async function initializeAutoUpdateMonitor() {
   }
   scheduleAutoUpdateCheck(autoUpdateConfig.checkIntervalMs);
 }
+function setupHistorySwipe() {
+  const calendar = dom.historyCalendar;
+  if (!calendar) {
+    return;
+  }
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  let handled = false;
+
+  const reset = () => {
+    tracking = false;
+    handled = false;
+  };
+
+  calendar.addEventListener(
+    'touchstart',
+    (event) => {
+      if (!event.touches || event.touches.length !== 1) {
+        return;
+      }
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      tracking = true;
+      handled = false;
+    },
+    { passive: true }
+  );
+
+  calendar.addEventListener(
+    'touchmove',
+    (event) => {
+      if (!tracking || !event.touches || event.touches.length !== 1) {
+        return;
+      }
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      if (!handled) {
+        if (Math.abs(deltaX) > Math.abs(deltaY) + 8 && Math.abs(deltaX) > 10) {
+          handled = true;
+          event.preventDefault();
+        } else if (Math.abs(deltaY) > Math.abs(deltaX) + 8) {
+          tracking = false;
+        }
+      } else {
+        event.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+
+  const handleSwipeEnd = (event) => {
+    if (!tracking) {
+      return;
+    }
+    tracking = false;
+    if (!handled) {
+      return;
+    }
+    const changedTouches = event.changedTouches;
+    if (!changedTouches || changedTouches.length !== 1) {
+      return;
+    }
+    const touch = changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    if (Math.abs(deltaX) < 45) {
+      return;
+    }
+    if (deltaX < 0) {
+      changeHistoryMonth(1);
+    } else {
+      changeHistoryMonth(-1);
+    }
+    reset();
+  };
+
+  calendar.addEventListener('touchend', handleSwipeEnd, { passive: true });
+  calendar.addEventListener('touchcancel', reset, { passive: true });
+}
 
 const dom = {
   loginButton: document.getElementById('login-button'),
@@ -349,6 +431,7 @@ const dom = {
   historyMonthLabel: document.getElementById('history-month-label'),
   historyPrevMonth: document.getElementById('history-prev-month'),
   historyNextMonth: document.getElementById('history-next-month'),
+  historyCalendar: document.querySelector('.history-calendar'),
   historyGrid: document.getElementById('history-grid'),
   historyDetail: document.getElementById('history-detail'),
   historyDetailDate: document.getElementById('history-detail-date'),
@@ -1877,6 +1960,7 @@ function bindGlobalEvents() {
         });
     });
   }
+  setupHistorySwipe();
   forEachNode(dom.navButtons, (button) => {
     if (!button) {
       return;

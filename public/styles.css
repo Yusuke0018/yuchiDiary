@@ -436,37 +436,38 @@ body {
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 12px;
+  padding: 10px;
+  touch-action: pan-y;
 }
 
 .history-calendar__weekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  gap: 4px;
   font-weight: 600;
   color: var(--text-muted);
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .history-calendar__grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 10px;
+  gap: 4px;
+  margin-top: 8px;
 }
 
 .history-day {
   border-radius: 14px;
   border: 1px solid rgba(227, 131, 131, 0.2);
   background: var(--surface-alt);
-  padding: 8px 10px;
-  text-align: left;
+  padding: 10px 6px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 6px;
-  min-height: 74px;
+  min-height: 56px;
   aspect-ratio: 1 / 1;
   cursor: pointer;
   position: relative;
@@ -491,8 +492,17 @@ body {
   transition: all 0.2s ease;
 }
 
+.history-day::before {
+  inset: 0;
+  margin: 6px;
+  border-radius: 12px;
+  border: 2px solid rgba(227, 131, 131, 0.75);
+  opacity: 0;
+  transform: scale(0.9);
+}
+
 .history-day:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
 
@@ -512,14 +522,12 @@ body {
 
 .history-day--selected {
   background: var(--surface);
-  border-color: rgba(227, 131, 131, 0.75);
+  border-color: rgba(227, 131, 131, 0.4);
 }
 
 .history-day--selected::before {
-  inset: 6px;
-  border-radius: 10px;
-  border: 2px solid rgba(227, 131, 131, 0.75);
-  background: rgba(227, 131, 131, 0.08);
+  opacity: 1;
+  background: rgba(227, 131, 131, 0.1);
 }
 
 .history-day--selected::after {
@@ -531,8 +539,8 @@ body {
 }
 
 .history-day--today::after {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: rgba(227, 131, 131, 0.7);
   bottom: 6px;
@@ -546,14 +554,14 @@ body {
 
 .history-day__number {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .history-day__indicator {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
-  margin-left: auto;
+  margin: 0;
   background: transparent;
   border: 1px solid rgba(227, 131, 131, 0.35);
 }
@@ -895,5 +903,33 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+}
+
+@media (min-width: 960px) {
+  .history-calendar {
+    padding: 16px;
+  }
+  .history-calendar__weekdays {
+    gap: 8px;
+    font-size: 0.9rem;
+  }
+  .history-calendar__grid {
+    gap: 8px;
+  }
+  .history-day {
+    min-height: 86px;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .history-day::before {
+    margin: 8px;
+  }
+  .history-day__number {
+    font-size: 1.1rem;
+  }
+  .history-day__indicator {
+    width: 10px;
+    height: 10px;
   }
 }
