@@ -143,6 +143,15 @@ const dom = {
   modalDelete: document.getElementById('modal-delete'),
 };
 
+function forEachNode(list, callback) {
+  if (!list || typeof callback !== 'function') {
+    return;
+  }
+  for (let index = 0; index < list.length; index += 1) {
+    callback(list[index], index);
+  }
+}
+
 const DEFAULT_AGREEMENTS = [
   '朝のハグ',
   '６時50分には起きる（しんどい時は申告する）',
@@ -242,10 +251,13 @@ function setActiveView(view) {
   });
 
   // ナビゲーションボタンのアクティブ状態を更新
-  dom.navButtons.forEach((button) => {
+  forEachNode(dom.navButtons, (button) => {
+    if (!button || !button.classList) {
+      return;
+    }
     button.classList.toggle(
       'tab-nav__button--active',
-      button.dataset.view === view
+      button.dataset && button.dataset.view === view
     );
   });
 
@@ -391,7 +403,6 @@ function subscribeAgreements() {
   try {
     const agreementsQuery = query(
       collection(db, 'agreements'),
-      orderBy('pinned', 'desc'),
       orderBy('order', 'asc')
     );
 
@@ -413,6 +424,18 @@ function subscribeAgreements() {
           id: docSnap.id,
           ...docSnap.data(),
         }));
+
+        agreements.sort((a, b) => {
+          const pinnedDiff = (b && b.pinned ? 1 : 0) - (a && a.pinned ? 1 : 0);
+          if (pinnedDiff !== 0) {
+            return pinnedDiff;
+          }
+          const orderA =
+            typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
+          const orderB =
+            typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
+          return orderA - orderB;
+        });
 
         state.agreements = agreements.filter(
           (item) => item.status !== 'archived'
@@ -1175,9 +1198,12 @@ function bindGlobalEvents() {
     }
     setActiveView('today');
   });
-  dom.navButtons.forEach((button) => {
+  forEachNode(dom.navButtons, (button) => {
+    if (!button) {
+      return;
+    }
     button.addEventListener('click', () => {
-      const view = button.dataset.view;
+      const view = button.dataset ? button.dataset.view : null;
       if (view) {
         setActiveView(view);
       }

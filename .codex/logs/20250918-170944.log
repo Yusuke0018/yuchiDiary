@@ -1,0 +1,13 @@
+timestamp: 2025-09-18T17:09:44+0900
+branch: main
+latest_commit: fix: restore navigation on legacy safari
+diff_summary:
+  - avoid NodeList.forEach to support older Safari and legacy browsers
+  - sort agreements client-side so documents without status still appear
+  - add helper utility for safe DOM iteration
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: fix: restore navigation on legacy safari
+git_push: pending
