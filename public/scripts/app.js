@@ -1152,7 +1152,11 @@ function renderEntryCard(container, { role, entry }) {
   header.className = 'entry-card__header';
   const title = document.createElement('h3');
   title.className = 'entry-card__title';
-  title.textContent = roleLabels[role] || role;
+  if (role === 'chii') {
+    title.textContent = '今日のゆうちゃんへの評価';
+  } else {
+    title.textContent = roleLabels[role] || role;
+  }
   const status = document.createElement('span');
   status.className = 'entry-card__status';
   status.textContent = entry
