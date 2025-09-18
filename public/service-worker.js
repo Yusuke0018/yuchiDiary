@@ -49,40 +49,11 @@ self.addEventListener('fetch', (event) => {
   if (!request.url.startsWith(self.location.origin)) {
     return;
   }
-  if (request.cache === 'only-if-cached' && request.mode !== 'same-origin') {
-    return;
-  }
 
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const networkFetch = fetch(request)
-        .then((networkResponse) => {
-          if (
-            !networkResponse ||
-            networkResponse.status !== 200 ||
-            networkResponse.type === 'opaque'
-          ) {
-            return networkResponse;
-          }
-          let responseClone;
-          try {
-            responseClone = networkResponse.clone();
-          } catch (cloneError) {
-            console.warn('SW response clone skipped', cloneError);
-            return networkResponse;
-          }
-          caches
-            .open(CACHE_NAME)
-            .then((cache) => cache.put(request, responseClone))
-            .catch((error) => console.error('SW cache put error', error));
-          return networkResponse;
-        })
-        .catch((error) => {
-          console.warn('SW network fetch failed, falling back to cache', error);
-          return cachedResponse;
-        });
-
-      return cachedResponse || networkFetch;
+    fetch(request).catch((error) => {
+      console.warn('SW network fetch failed, attempting cache fallback', error);
+      return caches.match(request);
     })
   );
 });

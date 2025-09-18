@@ -1,0 +1,11 @@
+timestamp: 2025-09-18T17:37:13+0900
+branch: main
+latest_commit: fix: disable caching for network fetches
+diff_summary:
+  - simplify service worker fetch handler to network-first without cloning responses
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: fix: disable caching for network fetches
+git_push: pending
