@@ -23,5 +23,3 @@ self.addEventListener('activate', (event) => {
       .catch(() => self.registration.unregister())
   );
 });
-
-self.addEventListener('fetch', () => {});
