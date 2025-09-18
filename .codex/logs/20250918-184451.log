@@ -1,0 +1,13 @@
+timestamp: 2025-09-18T18:44:51+0900
+branch: main
+latest_commit: 53929f5
+diff_summary:
+  - add select-based view switcher as legacy fallback
+  - provide flex fallback for navigation tabs
+  - wire select change events into existing view switching
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: pending
+git_push: pending

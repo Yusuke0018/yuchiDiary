@@ -146,6 +146,8 @@ const dom = {
     stats: document.querySelector('[data-view="stats"]'),
   },
   modalDelete: document.getElementById('modal-delete'),
+  viewSwitcher: document.querySelector('.view-switcher'),
+  viewSelect: document.getElementById('view-select'),
 };
 
 function forEachNode(list, callback) {
@@ -321,6 +323,10 @@ function setActiveView(view) {
     section.classList.toggle('hidden', shouldHide);
     console.log(`${key} セクション: ${shouldHide ? '非表示' : '表示'}`);
   });
+
+  if (dom.viewSelect && dom.viewSelect.value !== view) {
+    dom.viewSelect.value = view;
+  }
 
   // ナビゲーションボタンのアクティブ状態を更新
   forEachNode(dom.navButtons, (button) => {
@@ -1274,12 +1280,26 @@ function bindGlobalEvents() {
       return;
     }
     button.addEventListener('click', () => {
-      const view = button.dataset ? button.dataset.view : null;
+      const view = button.dataset
+        ? button.dataset.view
+        : button.getAttribute('data-view');
       if (view) {
         setActiveView(view);
       }
     });
   });
+  if (dom.viewSelect) {
+    dom.viewSelect.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target) {
+        return;
+      }
+      const view = target.value;
+      if (view) {
+        setActiveView(view);
+      }
+    });
+  }
   setupAgreementHandlers();
   dom.modalBackdrop.addEventListener('click', (event) => {
     if (event.target === dom.modalBackdrop) {
