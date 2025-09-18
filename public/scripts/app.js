@@ -66,7 +66,12 @@ const db = getFirestore(firebaseApp);
 const functions = getFunctions(firebaseApp, 'asia-northeast1');
 const incrementThanksCallable = httpsCallable(functions, 'incrementThanks');
 
-const userIndex = new Map(APP_USERS.map((user) => [user.email, user]));
+const userIndex = {};
+APP_USERS.forEach((user) => {
+  if (user && user.email) {
+    userIndex[user.email] = user;
+  }
+});
 const roleLabels = APP_USERS.reduce((acc, user) => {
   acc[user.role] = user.displayName;
   return acc;
@@ -150,6 +155,68 @@ function forEachNode(list, callback) {
   for (let index = 0; index < list.length; index += 1) {
     callback(list[index], index);
   }
+}
+
+function getObjectEntries(target) {
+  const entries = [];
+  if (!target || typeof target !== 'object') {
+    return entries;
+  }
+  for (const key in target) {
+    if (Object.prototype.hasOwnProperty.call(target, key)) {
+      entries.push([key, target[key]]);
+    }
+  }
+  return entries;
+}
+
+function getObjectValues(target) {
+  const values = [];
+  if (!target || typeof target !== 'object') {
+    return values;
+  }
+  for (const key in target) {
+    if (Object.prototype.hasOwnProperty.call(target, key)) {
+      values.push(target[key]);
+    }
+  }
+  return values;
+}
+
+function findAgreementById(id) {
+  if (!id) {
+    return null;
+  }
+  for (let index = 0; index < state.agreements.length; index += 1) {
+    const agreement = state.agreements[index];
+    if (agreement && agreement.id === id) {
+      return agreement;
+    }
+  }
+  return null;
+}
+
+function findScoreOptionByValue(value) {
+  for (let index = 0; index < SCORE_OPTIONS.length; index += 1) {
+    const option = SCORE_OPTIONS[index];
+    if (option && Number(option.value) === Number(value)) {
+      return option;
+    }
+  }
+  return null;
+}
+
+function findDayById(days, id) {
+  if (!Array.isArray(days) || !id) {
+    return null;
+  }
+  for (let index = 0; index < days.length; index += 1) {
+    const day = days[index];
+    if (day && day.id === id) {
+      return day;
+    }
+  }
+  return null;
 }
 
 const DEFAULT_AGREEMENTS = [
@@ -240,7 +307,9 @@ function setActiveView(view) {
   state.activeView = view;
 
   // すべてのセクションを非表示にして、選択されたものだけを表示
-  Object.entries(dom.viewSections).forEach(([key, section]) => {
+  getObjectEntries(dom.viewSections).forEach((entry) => {
+    const key = entry[0];
+    const section = entry[1];
     if (!section) {
       console.warn(`ビューセクション ${key} が見つかりません`);
       return;
@@ -453,7 +522,7 @@ function subscribeAgreements() {
           errorMessage = '決め事にアクセスする権限がありません';
         } else if (error.code === 'failed-precondition') {
           errorMessage = 'Firestoreのインデックスが不足しています';
-        } else if (error.message && error.message.includes('offline')) {
+        } else if (error.message && error.message.indexOf('offline') !== -1) {
           errorMessage = 'オフラインのため決め事を取得できません';
         }
 
@@ -683,8 +752,9 @@ function renderThanks(breakdown, total) {
 
 function renderEntryCards(entries = {}) {
   const entriesByRole = { master: null, chii: null };
-  Object.values(entries).forEach((entry) => {
-    if (entry.role === 'master' || entry.role === 'chii') {
+  const entryList = getObjectValues(entries);
+  entryList.forEach((entry) => {
+    if (entry && (entry.role === 'master' || entry.role === 'chii')) {
       entriesByRole[entry.role] = entry;
     }
   });
@@ -850,7 +920,7 @@ function renderHistoryItem(day) {
 }
 
 function scoreLabel(score) {
-  const option = SCORE_OPTIONS.find((item) => item.value === Number(score));
+  const option = findScoreOptionByValue(score);
   return option ? option.label : '-';
 }
 
@@ -952,9 +1022,7 @@ function setupAgreementHandlers() {
     agreementPressTargetId = item.dataset.id;
     agreementPressTimer = window.setTimeout(() => {
       agreementPressTimer = null;
-      const agreement = state.agreements.find(
-        (ag) => ag.id === agreementPressTargetId
-      );
+      const agreement = findAgreementById(agreementPressTargetId);
       if (agreement) {
         openAgreementModal(MODAL_MODE.EDIT, agreement);
       }
@@ -1060,7 +1128,7 @@ function updateStatsFromDayDoc(dayKey, dayData) {
 }
 
 function applyStats(days) {
-  const today = days.find((day) => day.id === state.todayKey);
+  const today = findDayById(days, state.todayKey);
   if (today) {
     dom.statTodayScore.textContent = today.scoreCount
       ? (today.scoreSum / today.scoreCount).toFixed(2)
@@ -1086,7 +1154,7 @@ function applyStats(days) {
       weekScoreCount += day.scoreCount;
       weekThanks += day.thanksTotal || 0;
     }
-    if (day.id.startsWith(monthKey)) {
+    if (typeof day.id === 'string' && day.id.indexOf(monthKey) === 0) {
       if (day.scoreCount) {
         monthScoreSum += day.scoreSum || 0;
         monthScoreCount += day.scoreCount;
@@ -1248,11 +1316,11 @@ bootstrap().catch((error) => {
   // より詳細なエラーメッセージを表示
   let errorMessage = 'アプリの初期化に失敗しました';
   if (error.message) {
-    if (error.message.includes('luxon')) {
+    if (error.message.indexOf('luxon') !== -1) {
       errorMessage = 'Luxonライブラリの読み込みエラー';
-    } else if (error.message.includes('Firebase')) {
+    } else if (error.message.indexOf('Firebase') !== -1) {
       errorMessage = 'Firebase初期化エラー';
-    } else if (error.message.includes('Network')) {
+    } else if (error.message.indexOf('Network') !== -1) {
       errorMessage = 'ネットワークエラー';
     }
     errorMessage += `: ${error.message}`;
@@ -1263,8 +1331,23 @@ bootstrap().catch((error) => {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('./service-worker.js')
-      .then(() => {
+      .getRegistrations()
+      .then((registrations) => {
+        for (let index = 0; index < registrations.length; index += 1) {
+          const registration = registrations[index];
+          if (registration && typeof registration.update === 'function') {
+            registration.update();
+          }
+        }
+      })
+      .catch(() => {});
+
+    navigator.serviceWorker
+      .register('./service-worker.js', { updateViaCache: 'none' })
+      .then((registration) => {
+        if (registration && typeof registration.update === 'function') {
+          registration.update();
+        }
         console.info('Service worker registered');
       })
       .catch((error) => {

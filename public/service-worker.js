@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'yuchi-diary-v2';
+const CACHE_VERSION = 'yuchi-diary-v3';
 const CACHE_NAME = `yuchi-diary-cache-${CACHE_VERSION}`;
 const CORE_ASSETS = [
   '/',

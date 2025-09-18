@@ -1,0 +1,14 @@
+timestamp: 2025-09-18T17:46:19+0900
+branch: main
+latest_commit: pending
+diff_summary:
+  - add compatibility helpers to avoid Object.entries/Object.values in older browsers
+  - remove Map usage for user lookup and replace string.includes/startsWith with indexOf checks
+  - simplify service worker registration to force updates and bump cache version
+  - switch fetch handler to network-only flow with updateViaCache disabled
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: pending
+git_push: pending
