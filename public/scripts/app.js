@@ -103,6 +103,21 @@ const unsubscribers = {
   weeklyComments: null,
 };
 
+function collectViewSections() {
+  const sections = {};
+  const elements = document.querySelectorAll('.view-section[data-view]');
+  elements.forEach((section) => {
+    if (!section || !section.dataset) {
+      return;
+    }
+    const key = section.dataset.view;
+    if (key && !sections[key]) {
+      sections[key] = section;
+    }
+  });
+  return sections;
+}
+
 const dom = {
   loginButton: document.getElementById('login-button'),
   logoutButton: document.getElementById('logout-button'),
@@ -139,12 +154,7 @@ const dom = {
   weeklyHistory: document.getElementById('weekly-comment-history'),
   toast: document.getElementById('toast'),
   navButtons: document.querySelectorAll('.tab-nav__button'),
-  viewSections: {
-    today: document.querySelector('[data-view="today"]'),
-    agreements: document.querySelector('[data-view="agreements"]'),
-    history: document.querySelector('[data-view="history"]'),
-    stats: document.querySelector('[data-view="stats"]'),
-  },
+  viewSections: collectViewSections(),
   modalDelete: document.getElementById('modal-delete'),
   viewSwitcher: document.querySelector('.view-switcher'),
   viewSelect: document.getElementById('view-select'),
@@ -304,7 +314,11 @@ function getUserMetaByEmail(email) {
 function setActiveView(view) {
   console.log(`ビューを切り替え: ${view}`);
 
-  if (!dom.viewSections[view]) {
+  if (!dom.viewSections || !dom.viewSections[view]) {
+    dom.viewSections = collectViewSections();
+  }
+
+  if (!dom.viewSections || !dom.viewSections[view]) {
     console.warn('Unknown view', view);
     return;
   }
@@ -1278,6 +1292,9 @@ function bindGlobalEvents() {
   forEachNode(dom.navButtons, (button) => {
     if (!button) {
       return;
+    }
+    if (button.classList && button.classList.contains('hidden')) {
+      button.classList.remove('hidden');
     }
     button.addEventListener('click', () => {
       const view = button.dataset
