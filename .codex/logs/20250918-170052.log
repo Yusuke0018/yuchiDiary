@@ -1,0 +1,14 @@
+timestamp: 2025-09-18T17:00:52+0900
+branch: main
+latest_commit: fix: restore navigation on legacy browsers
+diff_summary:
+  - broaden browser compatibility by removing optional chaining/nullish operators
+  - replace String.replaceAll with regex-based escaper
+  - filter archived agreements client-side so legacy documents without status still appear
+  - ensure thanks/stat fields fall back safely when data missing
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: fix: restore navigation on legacy browsers
+git_push: pending

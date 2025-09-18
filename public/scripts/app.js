@@ -27,7 +27,6 @@ import {
   startAfter,
   Timestamp,
   updateDoc,
-  where,
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
 import {
   getFunctions,
@@ -82,7 +81,12 @@ const state = {
   agreements: [],
   historyCursor: null,
   historyHasMore: true,
-  historyBatch: APP_SETTINGS.ui?.maxHistoryBatch || 14,
+  historyBatch:
+    APP_SETTINGS &&
+    APP_SETTINGS.ui &&
+    typeof APP_SETTINGS.ui.maxHistoryBatch === 'number'
+      ? APP_SETTINGS.ui.maxHistoryBatch
+      : 14,
   chart: null,
   activeView: 'today',
 };
@@ -247,7 +251,10 @@ function setActiveView(view) {
 
   // 特定のビューに対する追加処理
   if (view === 'agreements') {
-    console.log('決め事ビューを表示、現在の決め事数:', state.agreements?.length || 0);
+    const agreementCount = Array.isArray(state.agreements)
+      ? state.agreements.length
+      : 0;
+    console.log('決め事ビューを表示、現在の決め事数:', agreementCount);
   }
 
   if (view === 'history' && !dom.historyList.children.length) {
@@ -384,7 +391,6 @@ function subscribeAgreements() {
   try {
     const agreementsQuery = query(
       collection(db, 'agreements'),
-      where('status', '==', 'active'),
       orderBy('pinned', 'desc'),
       orderBy('order', 'asc')
     );
@@ -403,10 +409,14 @@ function subscribeAgreements() {
           });
         }
 
-        state.agreements = snapshot.docs.map((docSnap) => ({
+        const agreements = snapshot.docs.map((docSnap) => ({
           id: docSnap.id,
           ...docSnap.data(),
         }));
+
+        state.agreements = agreements.filter(
+          (item) => item.status !== 'archived'
+        );
 
         console.log('決め事リストをレンダリング:', state.agreements);
         renderAgreementList();
@@ -420,7 +430,7 @@ function subscribeAgreements() {
           errorMessage = '決め事にアクセスする権限がありません';
         } else if (error.code === 'failed-precondition') {
           errorMessage = 'Firestoreのインデックスが不足しています';
-        } else if (error.message?.includes('offline')) {
+        } else if (error.message && error.message.includes('offline')) {
           errorMessage = 'オフラインのため決め事を取得できません';
         }
 
@@ -530,14 +540,16 @@ function renderAgreementList() {
   });
 }
 
-function escapeHtml(text = '') {
-  return text
-    .toString()
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+function escapeHtml(text) {
+  const value = text == null ? '' : String(text);
+  const escapeMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return value.replace(/[&<>"']/g, (match) => escapeMap[match] || match);
 }
 
 function formatDate(value) {
@@ -636,9 +648,14 @@ function renderDayMeta(dayData) {
 }
 
 function renderThanks(breakdown, total) {
-  dom.thanksTotal.textContent = `合計 ${total}`;
-  dom.thanksMaster.textContent = breakdown?.master ?? 0;
-  dom.thanksChii.textContent = breakdown?.chii ?? 0;
+  const totalValue = typeof total === 'number' ? total : 0;
+  const masterValue =
+    breakdown && typeof breakdown.master === 'number' ? breakdown.master : 0;
+  const chiiValue =
+    breakdown && typeof breakdown.chii === 'number' ? breakdown.chii : 0;
+  dom.thanksTotal.textContent = `合計 ${totalValue}`;
+  dom.thanksMaster.textContent = masterValue;
+  dom.thanksChii.textContent = chiiValue;
 }
 
 function renderEntryCards(entries = {}) {
@@ -659,7 +676,7 @@ function renderEntryCards(entries = {}) {
 }
 
 function renderEntryCard(container, { role, entry }) {
-  const isCurrentUser = state.profile?.role === role;
+  const isCurrentUser = state.profile && state.profile.role === role;
   container.innerHTML = '';
   const header = document.createElement('div');
   header.className = 'entry-card__header';
@@ -694,6 +711,9 @@ function renderEntryCard(container, { role, entry }) {
 function createEntryForm(role, entry) {
   const form = document.createElement('form');
   form.className = 'entry-form';
+  const selectedScore =
+    entry && typeof entry.score === 'number' ? Number(entry.score) : null;
+  const noteValue = entry && typeof entry.note === 'string' ? entry.note : '';
   form.innerHTML = `
     <label>
       <span>今日の自己評価</span>
@@ -701,7 +721,7 @@ function createEntryForm(role, entry) {
         ${SCORE_OPTIONS.map(
           (option) => `
           <option value="${option.value}" ${
-            Number(entry?.score) === option.value ? 'selected' : ''
+            selectedScore === option.value ? 'selected' : ''
           }>${option.label}</option>`
         ).join('')}
       </select>
@@ -709,7 +729,7 @@ function createEntryForm(role, entry) {
     <label>
       <span>感想・メモ</span>
       <textarea name="note" rows="6" placeholder="今日の出来事や感謝したいことを書いてください">${
-        entry?.note ? escapeHtml(entry.note) : ''
+        noteValue ? escapeHtml(noteValue) : ''
       }</textarea>
     </label>
     <div class="entry-form__actions">
@@ -720,7 +740,8 @@ function createEntryForm(role, entry) {
     event.preventDefault();
     const formData = new FormData(form);
     const score = Number(formData.get('score'));
-    const note = formData.get('note')?.toString() ?? '';
+    const rawNote = formData.get('note');
+    const note = rawNote == null ? '' : String(rawNote);
     await saveEntry({ role, score, note });
     showToast('記録を保存しました');
   });
@@ -800,7 +821,7 @@ function renderHistoryItem(day) {
     summary.innerHTML = `
       <strong>${day.displayDate || day.id}</strong>
       <span>平均スコア: ${day.scoreCount ? (day.scoreSum / day.scoreCount).toFixed(2) : '-'}</span>
-      <span>ありがとう: ${day.thanksTotal ?? 0}</span>
+      <span>ありがとう: ${typeof day.thanksTotal === 'number' ? day.thanksTotal : 0}</span>
     `;
   }
 }
@@ -813,8 +834,10 @@ function scoreLabel(score) {
 async function handleAgreementSubmit(event) {
   event.preventDefault();
   const formData = new FormData(dom.modalForm);
-  const title = formData.get('title')?.toString().trim();
-  const body = formData.get('body')?.toString().trim() || '';
+  const rawTitle = formData.get('title');
+  const rawBody = formData.get('body');
+  const title = rawTitle == null ? '' : String(rawTitle).trim();
+  const body = rawBody == null ? '' : String(rawBody).trim();
   if (!title) {
     showToast('タイトルを入力してください');
     return;
@@ -854,12 +877,12 @@ async function handleAgreementSubmit(event) {
 
 function openAgreementModal(mode, agreement = null) {
   modalMode = mode;
-  editingAgreementId = agreement?.id || null;
+  editingAgreementId = agreement && agreement.id ? agreement.id : null;
   dom.modalTitle.textContent =
     mode === MODAL_MODE.CREATE ? '新しい決め事' : '決め事を編集';
   if (agreement) {
-    dom.modalForm.title.value = agreement.title;
-    dom.modalForm.body.value = agreement.body;
+    dom.modalForm.title.value = agreement.title || '';
+    dom.modalForm.body.value = agreement.body || '';
   } else {
     dom.modalForm.reset();
   }
@@ -890,7 +913,7 @@ function setupAgreementHandlers() {
   dom.modalForm.addEventListener('submit', handleAgreementSubmit);
   dom.modalDelete.addEventListener('click', () => {
     if (!editingAgreementId) return;
-    if (state.profile?.role !== 'master') {
+    if (!state.profile || state.profile.role !== 'master') {
       showToast('削除はマスターのみ可能です');
       return;
     }
@@ -1007,7 +1030,9 @@ function updateStatsFromDayDoc(dayKey, dayData) {
     dom.statTodayScore.textContent = dayData.scoreCount
       ? (dayData.scoreSum / dayData.scoreCount).toFixed(2)
       : '-';
-    dom.statTodayThanks.textContent = `ありがとう ${dayData.thanksTotal ?? 0}`;
+    const todayThanks =
+      typeof dayData.thanksTotal === 'number' ? dayData.thanksTotal : 0;
+    dom.statTodayThanks.textContent = `ありがとう ${todayThanks}`;
   }
 }
 
@@ -1017,7 +1042,9 @@ function applyStats(days) {
     dom.statTodayScore.textContent = today.scoreCount
       ? (today.scoreSum / today.scoreCount).toFixed(2)
       : '-';
-    dom.statTodayThanks.textContent = `ありがとう ${today.thanksTotal ?? 0}`;
+    const latestThanks =
+      typeof today.thanksTotal === 'number' ? today.thanksTotal : 0;
+    dom.statTodayThanks.textContent = `ありがとう ${latestThanks}`;
   }
   const now = DateTime.now().setZone(APP_SETTINGS.timezone, {
     keepLocalTime: false,
@@ -1170,7 +1197,7 @@ async function bootstrap() {
 
     // DOMが完全に読み込まれているか確認
     if (document.readyState === 'loading') {
-      await new Promise(resolve => {
+      await new Promise((resolve) => {
         document.addEventListener('DOMContentLoaded', resolve, { once: true });
       });
     }
