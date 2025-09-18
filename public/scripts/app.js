@@ -1300,6 +1300,23 @@ function bindGlobalEvents() {
       }
     });
   }
+  if (dom.viewSwitcher) {
+    let shouldShowViewSelect = true;
+    const supportsGrid =
+      typeof CSS !== 'undefined' &&
+      CSS &&
+      typeof CSS.supports === 'function' &&
+      CSS.supports('display', 'grid');
+    if (supportsGrid) {
+      shouldShowViewSelect = false;
+    }
+    if (!dom.navButtons || dom.navButtons.length < 4) {
+      shouldShowViewSelect = true;
+    }
+    if (shouldShowViewSelect) {
+      dom.viewSwitcher.classList.remove('view-switcher--hidden');
+    }
+  }
   setupAgreementHandlers();
   dom.modalBackdrop.addEventListener('click', (event) => {
     if (event.target === dom.modalBackdrop) {

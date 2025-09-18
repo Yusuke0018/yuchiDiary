@@ -1,0 +1,13 @@
+timestamp: 2025-09-18T18:58:43+0900
+branch: main
+latest_commit: 818c35d
+diff_summary:
+  - mark fallback view switcher hidden by default and show only when needed
+  - adjust navigation buttons to flex-based fallback layout
+  - detect grid support at runtime and reveal select for legacy browsers
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: pending
+git_push: pending
