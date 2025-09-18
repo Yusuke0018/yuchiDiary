@@ -1070,3 +1070,16 @@ bootstrap().catch((error) => {
   console.error('アプリ初期化中にエラーが発生しました', error);
   showToast('アプリの初期化に失敗しました');
 });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('./service-worker.js')
+      .then(() => {
+        console.info('Service worker registered');
+      })
+      .catch((error) => {
+        console.error('Service worker registration failed', error);
+      });
+  });
+}
