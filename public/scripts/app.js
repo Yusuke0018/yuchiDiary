@@ -1061,12 +1061,20 @@ function renderHistoryCalendar() {
     } else {
       cell.setAttribute('aria-pressed', 'false');
     }
+    if (dayKey === todayKey) {
+      cell.setAttribute('aria-current', 'date');
+    } else {
+      cell.removeAttribute('aria-current');
+    }
     const accessibleStatus = hasRecord ? '記録あり' : '記録なし';
     cell.setAttribute(
       'aria-label',
       `${dayDate.toFormat('M月d日')} ${accessibleStatus}`
     );
     const tooltipParts = [];
+    if (dayKey === todayKey) {
+      tooltipParts.push('今日');
+    }
     if (avgScoreValue != null) {
       tooltipParts.push(`平均 ${avgScoreValue}`);
     }
