@@ -234,9 +234,32 @@
 
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
+    <!-- 外部ライブラリを先に読み込み -->
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-    <script type="module" src="./app-config.js"></script>
-    <script type="module" src="./scripts/app.js"></script>
+
+    <!-- アプリケーションスクリプトをdeferで読み込み -->
+    <script type="module">
+      // アプリケーションの初期化前に必要なライブラリが読み込まれているか確認
+      if (typeof luxon === 'undefined') {
+        document.addEventListener('DOMContentLoaded', () => {
+          const errorDiv = document.createElement('div');
+          errorDiv.innerHTML = 'エラー: 必要なライブラリが読み込まれていません。ページをリロードしてください。';
+          errorDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: red; color: white; padding: 20px; border-radius: 5px; z-index: 10000;';
+          document.body.appendChild(errorDiv);
+        });
+      } else {
+        // アプリケーションスクリプトの読み込み
+        import('./scripts/app.js').catch(error => {
+          console.error('アプリケーションの読み込みに失敗しました:', error);
+          document.addEventListener('DOMContentLoaded', () => {
+            const errorDiv = document.createElement('div');
+            errorDiv.innerHTML = `エラー: アプリケーションの初期化に失敗しました。<br>${error.message}`;
+            errorDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: red; color: white; padding: 20px; border-radius: 5px; z-index: 10000; max-width: 80%;';
+            document.body.appendChild(errorDiv);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

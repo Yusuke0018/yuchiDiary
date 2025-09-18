@@ -34,12 +34,34 @@ import {
   httpsCallable,
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-functions.js';
 
+// Luxonがグローバルに読み込まれているかチェック
+if (typeof luxon === 'undefined') {
+  console.error('Luxonライブラリが読み込まれていません');
+  throw new Error('Luxonライブラリが見つかりません');
+}
 const { DateTime, Settings } = luxon;
 
-Settings.defaultLocale = 'ja-JP';
-Settings.defaultZone = APP_SETTINGS.timezone;
+// Luxon設定
+try {
+  Settings.defaultLocale = 'ja-JP';
+  Settings.defaultZone = APP_SETTINGS.timezone;
+} catch (error) {
+  console.error('Luxon設定エラー:', error);
+  throw error;
+}
 
-const firebaseApp = initializeApp(firebaseConfig);
+// Firebase初期化
+let firebaseApp;
+try {
+  if (!firebaseConfig || !firebaseConfig.apiKey) {
+    throw new Error('Firebase設定が正しく読み込まれていません');
+  }
+  firebaseApp = initializeApp(firebaseConfig);
+  console.log('Firebase初期化成功');
+} catch (error) {
+  console.error('Firebase初期化エラー:', error);
+  throw error;
+}
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 const functions = getFunctions(firebaseApp, 'asia-northeast1');
@@ -195,9 +217,13 @@ function getUserMetaByEmail(email) {
 }
 
 function setActiveView(view) {
-  if (!dom.viewSections[view]) return;
+  if (!dom.viewSections[view]) {
+    console.warn('Unknown view', view);
+    return;
+  }
   state.activeView = view;
   Object.entries(dom.viewSections).forEach(([key, section]) => {
+    if (!section) return;
     section.classList.toggle('hidden', key !== view);
   });
   dom.navButtons.forEach((button) => {
@@ -1014,15 +1040,46 @@ function bindGlobalEvents() {
 }
 
 async function bootstrap() {
-  bindGlobalEvents();
-  setActiveView('today');
-  await setPersistence(auth, browserLocalPersistence);
-  onAuthStateChanged(auth, handleAuthState);
+  try {
+    console.log('アプリケーション起動中...');
+
+    // DOMが完全に読み込まれているか確認
+    if (document.readyState === 'loading') {
+      await new Promise(resolve => {
+        document.addEventListener('DOMContentLoaded', resolve, { once: true });
+      });
+    }
+
+    bindGlobalEvents();
+    setActiveView('today');
+    await setPersistence(auth, browserLocalPersistence);
+    onAuthStateChanged(auth, handleAuthState);
+
+    console.log('アプリケーション起動完了');
+  } catch (error) {
+    console.error('bootstrap内でエラー:', error);
+    throw error;
+  }
 }
 
+// アプリケーション起動
 bootstrap().catch((error) => {
-  console.error('アプリ初期化中にエラーが発生しました', error);
-  showToast('アプリの初期化に失敗しました');
+  console.error('アプリ初期化中にエラーが発生しました:', error);
+  console.error('エラーの詳細:', error.message, error.stack);
+
+  // より詳細なエラーメッセージを表示
+  let errorMessage = 'アプリの初期化に失敗しました';
+  if (error.message) {
+    if (error.message.includes('luxon')) {
+      errorMessage = 'Luxonライブラリの読み込みエラー';
+    } else if (error.message.includes('Firebase')) {
+      errorMessage = 'Firebase初期化エラー';
+    } else if (error.message.includes('Network')) {
+      errorMessage = 'ネットワークエラー';
+    }
+    errorMessage += `: ${error.message}`;
+  }
+  showToast(errorMessage);
 });
 
 if ('serviceWorker' in navigator) {
