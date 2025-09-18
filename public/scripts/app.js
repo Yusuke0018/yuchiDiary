@@ -1037,13 +1037,20 @@ function renderHistoryCalendar() {
     const dayKey = dayDate.toFormat('yyyy-LL-dd');
     const dayData = state.historyDays[dayKey];
     const avgScoreValue = getDayAverageScore(dayData, 1);
-    const avgScore = avgScoreValue != null ? avgScoreValue : '-';
-    const thanksTotal =
+    const thanksTotalValue =
       dayData && typeof dayData.thanksTotal === 'number'
         ? dayData.thanksTotal
-        : '-';
+        : null;
+    const hasRecord = !!(
+      dayData &&
+      (dayData.scoreCount > 0 || (thanksTotalValue && thanksTotalValue > 0))
+    );
+
     if (!dayData) {
       cell.classList.add('history-day--empty');
+    }
+    if (hasRecord) {
+      cell.classList.add('history-day--recorded');
     }
     if (dayKey === todayKey) {
       cell.classList.add('history-day--today');
@@ -1054,11 +1061,28 @@ function renderHistoryCalendar() {
     } else {
       cell.setAttribute('aria-pressed', 'false');
     }
+    const accessibleStatus = hasRecord ? '記録あり' : '記録なし';
+    cell.setAttribute(
+      'aria-label',
+      `${dayDate.toFormat('M月d日')} ${accessibleStatus}`
+    );
+    const tooltipParts = [];
+    if (avgScoreValue != null) {
+      tooltipParts.push(`平均 ${avgScoreValue}`);
+    }
+    if (typeof thanksTotalValue === 'number') {
+      tooltipParts.push(`ありがとう ${thanksTotalValue}`);
+    }
+    cell.title = tooltipParts.length
+      ? tooltipParts.join(' / ')
+      : accessibleStatus;
     cell.dataset.dayKey = dayKey;
+    const indicator = hasRecord
+      ? '<span class="history-day__indicator" aria-hidden="true"></span>'
+      : '';
     cell.innerHTML = `
       <span class="history-day__number">${dayNumber}</span>
-      <span class="history-day__score">平均 ${avgScore}</span>
-      <span class="history-day__thanks">ありがとう ${thanksTotal}</span>
+      ${indicator}
     `;
     cell.addEventListener('click', () => {
       selectHistoryDay(dayKey);

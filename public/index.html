@@ -161,40 +161,45 @@
               </button>
             </div>
           </div>
-          <div class="history-calendar" aria-live="polite">
-            <div class="history-calendar__weekdays">
-              <span>日</span>
-              <span>月</span>
-              <span>火</span>
-              <span>水</span>
-              <span>木</span>
-              <span>金</span>
-              <span>土</span>
+          <div class="history-content">
+            <div class="history-calendar" aria-live="polite">
+              <div class="history-calendar__weekdays">
+                <span>日</span>
+                <span>月</span>
+                <span>火</span>
+                <span>水</span>
+                <span>木</span>
+                <span>金</span>
+                <span>土</span>
+              </div>
+              <div id="history-grid" class="history-calendar__grid"></div>
             </div>
-            <div id="history-grid" class="history-calendar__grid"></div>
-          </div>
-          <div id="history-detail" class="history-detail">
-            <div class="history-detail__header">
-              <h3 id="history-detail-date" class="history-detail__title">
-                日付を選択してください
-              </h3>
-              <button
-                id="history-open-day"
-                class="button button--primary history-detail__open"
-                type="button"
-                disabled
-              >
-                今日の画面で開く
-              </button>
+            <div id="history-detail" class="history-detail">
+              <div class="history-detail__header">
+                <h3 id="history-detail-date" class="history-detail__title">
+                  日付を選択してください
+                </h3>
+                <button
+                  id="history-open-day"
+                  class="button button--primary history-detail__open"
+                  type="button"
+                  disabled
+                >
+                  今日の画面で開く
+                </button>
+              </div>
+              <div class="history-detail__stats">
+                <p id="history-detail-score">平均スコア: -</p>
+                <p id="history-detail-thanks">ありがとう合計: -</p>
+                <p
+                  id="history-detail-thanks-breakdown"
+                  class="history-detail__breakdown"
+                >
+                  祐介: - / 千里: -
+                </p>
+              </div>
+              <ul id="history-detail-entries" class="history-detail__entries"></ul>
             </div>
-            <div class="history-detail__stats">
-              <p id="history-detail-score">平均スコア: -</p>
-              <p id="history-detail-thanks">ありがとう合計: -</p>
-              <p id="history-detail-thanks-breakdown" class="history-detail__breakdown">
-                祐介: - / 千里: -
-              </p>
-            </div>
-            <ul id="history-detail-entries" class="history-detail__entries"></ul>
           </div>
         </section>
 

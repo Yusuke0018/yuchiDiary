@@ -398,6 +398,19 @@ body {
   color: var(--accent-strong);
 }
 
+.history-content {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+@media (min-width: 960px) {
+  .history-content {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
 .history-controls {
   display: flex;
   align-items: center;
@@ -420,11 +433,10 @@ body {
 }
 
 .history-calendar {
-  margin-top: 20px;
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 16px;
+  padding: 12px;
 }
 
 .history-calendar__weekdays {
@@ -440,20 +452,22 @@ body {
 .history-calendar__grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .history-day {
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid rgba(227, 131, 131, 0.2);
   background: var(--surface-alt);
-  padding: 12px;
+  padding: 8px 10px;
   text-align: left;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 110px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 74px;
+  aspect-ratio: 1 / 1;
   cursor: pointer;
   transition:
     transform 0.15s ease,
@@ -475,6 +489,11 @@ body {
   opacity: 0.5;
 }
 
+.history-day--recorded {
+  background: var(--surface);
+  border-color: rgba(227, 131, 131, 0.45);
+}
+
 .history-day--selected {
   background: linear-gradient(
     135deg,
@@ -494,10 +513,18 @@ body {
   font-size: 1.1rem;
 }
 
-.history-day__score,
-.history-day__thanks {
-  font-size: 0.85rem;
-  color: var(--text-muted);
+.history-day__indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(227, 131, 131, 0.35);
+}
+
+.history-day--recorded .history-day__indicator {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
 }
 
 .history-detail {
@@ -509,6 +536,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .history-detail {
+    margin-top: 0;
+  }
 }
 
 .history-detail__header {
