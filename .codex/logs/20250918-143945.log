@@ -10,7 +10,6 @@ executed_commands:
   - npm run format (pass)
   - npm run lint (pass)
   - npm --prefix functions run lint (pass)
-next_actions:
-  - git add -A
-  - git commit -m "feat: bootstrap yuchi diary app"
-  - git push origin main
+next_actions: []
+git_commit: feat: bootstrap yuchi diary app
+git_push: success (origin main)
