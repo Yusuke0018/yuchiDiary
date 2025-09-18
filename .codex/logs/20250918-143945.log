@@ -8,6 +8,7 @@ diff_summary:
   - development tooling (eslint, prettier)
 executed_commands:
   - npm run format (pass)
+  - firebase deploy --only hosting (pass)
   - npm run lint (pass)
   - npm --prefix functions run lint (pass)
 next_actions: []
@@ -74,3 +75,14 @@ executed_commands:
 next_actions: []
 git_commit: fix: allow external scripts to load
 git_push: pending
+---
+timestamp: 2025-09-18T16:00:00+09:00
+branch: main
+latest_commit: pending
+diff_summary:
+  - add PWA manifest and mobile icons for home screen install
+executed_commands:
+  - npm run format (pass)
+next_actions: []
+git_commit: feat: add pwa manifest and icons
++git_push: pending
