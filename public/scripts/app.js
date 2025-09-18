@@ -401,13 +401,14 @@ function setupViewSwipe() {
       return;
     }
     const changedTouches = event.changedTouches;
-    reset();
     if (!handled || !changedTouches || changedTouches.length !== 1) {
+      reset();
       return;
     }
     const touch = changedTouches[0];
     const deltaX = touch.clientX - startX;
     if (Math.abs(deltaX) < 45) {
+      reset();
       return;
     }
     if (deltaX < 0) {
@@ -415,94 +416,15 @@ function setupViewSwipe() {
     } else {
       goToStep(-1);
     }
+    reset();
   };
 
   container.addEventListener('touchend', handleSwipeEnd, { passive: true });
   container.addEventListener('touchcancel', reset, { passive: true });
 }
 
-function setupHistorySwipe() {
-  const calendar = dom.historyCalendar;
-  if (!calendar) {
-    return;
-  }
-  let startX = 0;
-  let startY = 0;
-  let tracking = false;
-  let handled = false;
 
-  const reset = () => {
-    tracking = false;
-    handled = false;
-  };
 
-  calendar.addEventListener(
-    'touchstart',
-    (event) => {
-      if (!event.touches || event.touches.length !== 1) {
-        return;
-      }
-      const touch = event.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
-      tracking = true;
-      handled = false;
-    },
-    { passive: true }
-  );
-
-  calendar.addEventListener(
-    'touchmove',
-    (event) => {
-      if (!tracking || !event.touches || event.touches.length !== 1) {
-        return;
-      }
-      const touch = event.touches[0];
-      const deltaX = touch.clientX - startX;
-      const deltaY = touch.clientY - startY;
-
-      if (!handled) {
-        if (Math.abs(deltaX) > Math.abs(deltaY) + 8 && Math.abs(deltaX) > 10) {
-          handled = true;
-          event.preventDefault();
-        } else if (Math.abs(deltaY) > Math.abs(deltaX) + 8) {
-          tracking = false;
-        }
-      } else {
-        event.preventDefault();
-      }
-    },
-    { passive: false }
-  );
-
-  const handleSwipeEnd = (event) => {
-    if (!tracking) {
-      return;
-    }
-    tracking = false;
-    if (!handled) {
-      return;
-    }
-    const changedTouches = event.changedTouches;
-    if (!changedTouches || changedTouches.length !== 1) {
-      return;
-    }
-    const touch = changedTouches[0];
-    const deltaX = touch.clientX - startX;
-    if (Math.abs(deltaX) < 45) {
-      return;
-    }
-    if (deltaX < 0) {
-      changeHistoryMonth(1);
-    } else {
-      changeHistoryMonth(-1);
-    }
-    reset();
-  };
-
-  calendar.addEventListener('touchend', handleSwipeEnd, { passive: true });
-  calendar.addEventListener('touchcancel', reset, { passive: true });
-}
 
 const dom = {
   loginButton: document.getElementById('login-button'),
@@ -2059,7 +1981,6 @@ function bindGlobalEvents() {
         });
     });
   }
-  setupHistorySwipe();
   forEachNode(dom.navButtons, (button) => {
     if (!button) {
       return;
