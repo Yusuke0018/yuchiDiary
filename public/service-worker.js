@@ -49,6 +49,9 @@ self.addEventListener('fetch', (event) => {
   if (!request.url.startsWith(self.location.origin)) {
     return;
   }
+  if (request.cache === 'only-if-cached' && request.mode !== 'same-origin') {
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
@@ -61,7 +64,13 @@ self.addEventListener('fetch', (event) => {
           ) {
             return networkResponse;
           }
-          const responseClone = networkResponse.clone();
+          let responseClone;
+          try {
+            responseClone = networkResponse.clone();
+          } catch (cloneError) {
+            console.warn('SW response clone skipped', cloneError);
+            return networkResponse;
+          }
           caches
             .open(CACHE_NAME)
             .then((cache) => cache.put(request, responseClone))

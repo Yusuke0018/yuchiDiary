@@ -1,0 +1,12 @@
+timestamp: 2025-09-18T17:23:12+0900
+branch: main
+latest_commit: fix: guard service worker clone failures
+diff_summary:
+  - add guard for cache reuse scenario to skip cross-origin only-if-cached requests
+  - wrap Response.clone in try/catch to avoid body-used errors and skip caching when necessary
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: fix: guard service worker clone failures
+git_push: pending
