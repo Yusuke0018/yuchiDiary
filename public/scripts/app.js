@@ -159,6 +159,33 @@ function collectViewSections() {
   return sections;
 }
 
+function getThanksKeys() {
+  const role = state.profile && state.profile.role === 'chii' ? 'chii' : 'master';
+  return {
+    sentKey: role,
+    receivedKey: role === 'master' ? 'chii' : 'master',
+  };
+}
+
+function getThanksSplitFromBreakdown(breakdown) {
+  if (!breakdown || typeof breakdown !== 'object') {
+    return { sent: 0, received: 0 };
+  }
+  const { sentKey, receivedKey } = getThanksKeys();
+  const sent = Number(breakdown[sentKey] || 0);
+  const received = Number(breakdown[receivedKey] || 0);
+  return { sent, received };
+}
+
+function renderThanksStat(sentNode, receivedNode, sent, received) {
+  if (sentNode) {
+    sentNode.textContent = `贈った ${Number.isFinite(sent) ? sent : 0}`;
+  }
+  if (receivedNode) {
+    receivedNode.textContent = `もらった ${Number.isFinite(received) ? received : 0}`;
+  }
+}
+
 function parseVersionDescriptor(text) {
   if (!text) {
     return null;
@@ -464,11 +491,14 @@ const dom = {
   historyOpenDay: document.getElementById('history-open-day'),
   jumpToday: document.getElementById('jump-today'),
   statTodayScore: document.getElementById('stat-today-score'),
-  statTodayThanks: document.getElementById('stat-today-thanks'),
+  statTodayThanksSent: document.getElementById('stat-today-thanks-sent'),
+  statTodayThanksReceived: document.getElementById('stat-today-thanks-received'),
   statWeekScore: document.getElementById('stat-week-score'),
-  statWeekThanks: document.getElementById('stat-week-thanks'),
+  statWeekThanksSent: document.getElementById('stat-week-thanks-sent'),
+  statWeekThanksReceived: document.getElementById('stat-week-thanks-received'),
   statMonthScore: document.getElementById('stat-month-score'),
-  statMonthThanks: document.getElementById('stat-month-thanks'),
+  statMonthThanksSent: document.getElementById('stat-month-thanks-sent'),
+  statMonthThanksReceived: document.getElementById('stat-month-thanks-received'),
   trendCanvas: document.getElementById('trend-chart'),
   weeklyCurrent: document.getElementById('weekly-comment-current'),
   weeklyHistory: document.getElementById('weekly-comment-history'),
@@ -1813,9 +1843,15 @@ function updateStatsFromDayDoc(dayKey, dayData) {
     dom.statTodayScore.textContent = dayData.scoreCount
       ? (dayData.scoreSum / dayData.scoreCount).toFixed(2)
       : '-';
-    const todayThanks =
-      typeof dayData.thanksTotal === 'number' ? dayData.thanksTotal : 0;
-    dom.statTodayThanks.textContent = `ありがとう ${todayThanks}`;
+    const { sent, received } = getThanksSplitFromBreakdown(
+      dayData.thanksBreakdown
+    );
+    renderThanksStat(
+      dom.statTodayThanksSent,
+      dom.statTodayThanksReceived,
+      sent,
+      received
+    );
   }
 }
 
@@ -1825,9 +1861,13 @@ function applyStats(days) {
     dom.statTodayScore.textContent = today.scoreCount
       ? (today.scoreSum / today.scoreCount).toFixed(2)
       : '-';
-    const latestThanks =
-      typeof today.thanksTotal === 'number' ? today.thanksTotal : 0;
-    dom.statTodayThanks.textContent = `ありがとう ${latestThanks}`;
+    const todaySplit = getThanksSplitFromBreakdown(today.thanksBreakdown);
+    renderThanksStat(
+      dom.statTodayThanksSent,
+      dom.statTodayThanksReceived,
+      todaySplit.sent,
+      todaySplit.received
+    );
   }
   const now = DateTime.now().setZone(APP_SETTINGS.timezone, {
     keepLocalTime: false,
@@ -1836,32 +1876,52 @@ function applyStats(days) {
   const monthKey = now.toFormat('yyyy-LL');
   let weekScoreSum = 0;
   let weekScoreCount = 0;
-  let weekThanks = 0;
+  let weekThanksSent = 0;
+  let weekThanksReceived = 0;
   let monthScoreSum = 0;
   let monthScoreCount = 0;
-  let monthThanks = 0;
+  let monthThanksSent = 0;
+  let monthThanksReceived = 0;
   days.forEach((day) => {
     if (day.weekKey === weekKey && day.scoreCount) {
       weekScoreSum += day.scoreSum || 0;
       weekScoreCount += day.scoreCount;
-      weekThanks += day.thanksTotal || 0;
+      const { sent, received } = getThanksSplitFromBreakdown(
+        day.thanksBreakdown
+      );
+      weekThanksSent += sent;
+      weekThanksReceived += received;
     }
     if (typeof day.id === 'string' && day.id.indexOf(monthKey) === 0) {
       if (day.scoreCount) {
         monthScoreSum += day.scoreSum || 0;
         monthScoreCount += day.scoreCount;
       }
-      monthThanks += day.thanksTotal || 0;
+      const { sent, received } = getThanksSplitFromBreakdown(
+        day.thanksBreakdown
+      );
+      monthThanksSent += sent;
+      monthThanksReceived += received;
     }
   });
   dom.statWeekScore.textContent = weekScoreCount
     ? (weekScoreSum / weekScoreCount).toFixed(2)
     : '-';
-  dom.statWeekThanks.textContent = `ありがとう ${weekThanks}`;
+  renderThanksStat(
+    dom.statWeekThanksSent,
+    dom.statWeekThanksReceived,
+    weekThanksSent,
+    weekThanksReceived
+  );
   dom.statMonthScore.textContent = monthScoreCount
     ? (monthScoreSum / monthScoreCount).toFixed(2)
     : '-';
-  dom.statMonthThanks.textContent = `ありがとう ${monthThanks}`;
+  renderThanksStat(
+    dom.statMonthThanksSent,
+    dom.statMonthThanksReceived,
+    monthThanksSent,
+    monthThanksReceived
+  );
 }
 
 function updateChart(days) {

@@ -732,21 +732,38 @@ body {
 }
 
 .stat-card {
-  background: var(--surface-alt);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(100, 118, 255, 0.08));
   border-radius: var(--radius);
+  border: 1px solid rgba(100, 118, 255, 0.12);
   padding: 20px;
   text-align: center;
+  box-shadow: 0 12px 22px rgba(82, 88, 179, 0.1);
 }
 
 .stat-score {
   font-size: 1.6rem;
   font-weight: 700;
-  margin: 10px 0 0;
+  margin: 10px 0 6px;
 }
 
 .stat-thanks {
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.stat-thanks__item {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.stat-thanks__item--muted {
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 .weekly-card {
