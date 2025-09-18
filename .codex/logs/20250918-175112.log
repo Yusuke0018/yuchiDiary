@@ -1,0 +1,13 @@
+timestamp: 2025-09-18T17:51:12+0900
+branch: main
+latest_commit: fix: remove service worker usage
+diff_summary:
+  - stop registering service workers and unregister existing registrations on load
+  - replace service worker script with self-unregistering stub that clears caches
+  - add legacy-safe object helper functions and replace modern array methods for wider browser support
+executed_commands:
+  - npm run format (pass)
+  - npm run lint (pass; warnings only: console usage)
+next_actions: []
+git_commit: fix: remove service worker usage
+git_push: pending

@@ -1335,23 +1335,11 @@ if ('serviceWorker' in navigator) {
       .then((registrations) => {
         for (let index = 0; index < registrations.length; index += 1) {
           const registration = registrations[index];
-          if (registration && typeof registration.update === 'function') {
-            registration.update();
+          if (registration && typeof registration.unregister === 'function') {
+            registration.unregister();
           }
         }
       })
       .catch(() => {});
-
-    navigator.serviceWorker
-      .register('./service-worker.js', { updateViaCache: 'none' })
-      .then((registration) => {
-        if (registration && typeof registration.update === 'function') {
-          registration.update();
-        }
-        console.info('Service worker registered');
-      })
-      .catch((error) => {
-        console.error('Service worker registration failed', error);
-      });
   });
 }
