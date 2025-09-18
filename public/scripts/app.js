@@ -24,7 +24,8 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
-  startAfter,
+  startAt,
+  endAt,
   Timestamp,
   updateDoc,
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
@@ -84,14 +85,11 @@ const state = {
   todayKey: null,
   isLateNight: false,
   agreements: [],
-  historyCursor: null,
-  historyHasMore: true,
-  historyBatch:
-    APP_SETTINGS &&
-    APP_SETTINGS.ui &&
-    typeof APP_SETTINGS.ui.maxHistoryBatch === 'number'
-      ? APP_SETTINGS.ui.maxHistoryBatch
-      : 14,
+  historyMonth: null,
+  historyDays: {},
+  historyLoadedMonths: {},
+  historySelectedDay: null,
+  historyDayEntries: {},
   chart: null,
   activeView: 'today',
 };
@@ -140,8 +138,19 @@ const dom = {
   thanksMaster: document.getElementById('thanks-master'),
   thanksChii: document.getElementById('thanks-chii'),
   thanksButton: document.getElementById('thanks-button'),
-  historyList: document.getElementById('history-list'),
-  historyLoadMore: document.getElementById('load-more-history'),
+  historyMonthLabel: document.getElementById('history-month-label'),
+  historyPrevMonth: document.getElementById('history-prev-month'),
+  historyNextMonth: document.getElementById('history-next-month'),
+  historyGrid: document.getElementById('history-grid'),
+  historyDetail: document.getElementById('history-detail'),
+  historyDetailDate: document.getElementById('history-detail-date'),
+  historyDetailScore: document.getElementById('history-detail-score'),
+  historyDetailThanks: document.getElementById('history-detail-thanks'),
+  historyDetailThanksBreakdown: document.getElementById(
+    'history-detail-thanks-breakdown'
+  ),
+  historyDetailEntries: document.getElementById('history-detail-entries'),
+  historyOpenDay: document.getElementById('history-open-day'),
   jumpToday: document.getElementById('jump-today'),
   statTodayScore: document.getElementById('stat-today-score'),
   statTodayThanks: document.getElementById('stat-today-thanks'),
@@ -361,8 +370,10 @@ function setActiveView(view) {
     console.log('決め事ビューを表示、現在の決め事数:', agreementCount);
   }
 
-  if (view === 'history' && !dom.historyList.children.length) {
-    loadHistory(true);
+  if (view === 'history') {
+    loadHistoryMonth().catch((error) =>
+      console.error('履歴の読み込みに失敗:', error)
+    );
   }
 
   if (view === 'stats') {
@@ -407,7 +418,32 @@ function handleAuthState(user) {
     dom.loginButton.classList.remove('hidden');
     dom.main.classList.add('hidden');
     dom.signedOut.classList.remove('hidden');
-    dom.historyList.innerHTML = '';
+    if (dom.historyGrid) {
+      dom.historyGrid.innerHTML = '';
+    }
+    if (dom.historyDetailEntries) {
+      dom.historyDetailEntries.innerHTML = '';
+    }
+    if (dom.historyDetailDate) {
+      dom.historyDetailDate.textContent = '日付を選択してください';
+    }
+    if (dom.historyDetailScore) {
+      dom.historyDetailScore.textContent = '平均スコア: -';
+    }
+    if (dom.historyDetailThanks) {
+      dom.historyDetailThanks.textContent = 'ありがとう合計: -';
+    }
+    if (dom.historyDetailThanksBreakdown) {
+      dom.historyDetailThanksBreakdown.textContent = '祐介: - / 千里: -';
+    }
+    if (dom.historyOpenDay) {
+      dom.historyOpenDay.disabled = true;
+    }
+    state.historyDays = {};
+    state.historyLoadedMonths = {};
+    state.historySelectedDay = null;
+    state.historyDayEntries = {};
+    state.historyMonth = null;
     dom.agreementList.innerHTML = '';
     dom.weeklyCurrent.innerHTML = '';
     dom.weeklyHistory.innerHTML = '';
@@ -446,8 +482,15 @@ async function initializeAppData() {
     // 決め事のサブスクライブ
     subscribeAgreements();
 
-    // 履歴データの読み込み
-    await loadHistory(true);
+    // 履歴データの準備
+    state.historyDays = {};
+    state.historyLoadedMonths = {};
+    state.historyDayEntries = {};
+    state.historySelectedDay = null;
+    state.historyMonth = DateTime.fromISO(`${dayKey}T00:00:00`, {
+      zone: APP_SETTINGS.timezone,
+    }).startOf('month');
+    await loadHistoryMonth({ force: true });
     console.log('履歴データを読み込み');
 
     // 週次コメントのサブスクライブ
@@ -703,7 +746,7 @@ async function setActiveDay(dayKey) {
     renderDayMeta(data);
     renderThanks(data.thanksBreakdown || {}, data.thanksTotal || 0);
     updateStatsFromDayDoc(dayKey, data);
-    renderHistoryItem({ id: dayKey, ...data });
+    updateHistoryDayState(dayKey, data);
     updateStats().catch((error) =>
       console.error('統計更新に失敗しました', error)
     );
@@ -876,70 +919,349 @@ async function saveEntry({ role, score, note }) {
   });
 }
 
-async function loadHistory(initial = false) {
-  if (!state.profile) return;
-  if (initial) {
-    dom.historyList.innerHTML = '';
-    state.historyCursor = null;
-    state.historyHasMore = true;
+function getMonthKey(dateTime) {
+  if (!dateTime) return '';
+  return dateTime.toFormat('yyyy-LL');
+}
+
+function isDayInMonth(dayKey, monthDateTime) {
+  if (!dayKey || !monthDateTime) {
+    return false;
   }
-  if (!state.historyHasMore) return;
-  let historyQuery = query(
-    collection(db, 'days'),
-    orderBy('date', 'desc'),
-    limit(state.historyBatch)
-  );
-  if (state.historyCursor) {
-    historyQuery = query(historyQuery, startAfter(state.historyCursor));
-  }
-  const snapshot = await getDocs(historyQuery);
-  if (snapshot.empty) {
-    state.historyHasMore = false;
-    dom.historyLoadMore.disabled = true;
+  const dt = DateTime.fromISO(`${dayKey}T00:00:00`, {
+    zone: APP_SETTINGS.timezone,
+  });
+  return dt.year === monthDateTime.year && dt.month === monthDateTime.month;
+}
+
+function ensureHistoryMonthInitialized() {
+  if (state.historyMonth) {
     return;
   }
-  state.historyCursor = snapshot.docs[snapshot.docs.length - 1];
-  snapshot.docs.forEach((docSnap) => {
-    const data = docSnap.data();
-    renderHistoryItem({ id: docSnap.id, ...data });
-  });
-  if (snapshot.docs.length < state.historyBatch) {
-    state.historyHasMore = false;
-    dom.historyLoadMore.disabled = true;
-  } else {
-    dom.historyLoadMore.disabled = false;
+  const { current } = getDateInfo();
+  state.historyMonth = current.startOf('month');
+}
+
+function updateHistoryMonthLabel() {
+  if (!dom.historyMonthLabel || !state.historyMonth) {
+    return;
   }
+  dom.historyMonthLabel.textContent = state.historyMonth.toFormat('yyyy年M月');
+}
+
+function ensureHistorySelectedDay() {
+  ensureHistoryMonthInitialized();
+  if (
+    state.historySelectedDay &&
+    isDayInMonth(state.historySelectedDay, state.historyMonth)
+  ) {
+    return;
+  }
+  const todayKey = state.todayKey;
+  if (todayKey && isDayInMonth(todayKey, state.historyMonth)) {
+    state.historySelectedDay = todayKey;
+    return;
+  }
+  const monthKeys = Object.keys(state.historyDays)
+    .filter((key) => isDayInMonth(key, state.historyMonth))
+    .sort();
+  state.historySelectedDay = monthKeys.length ? monthKeys[0] : null;
+}
+
+async function loadHistoryMonth({ force = false } = {}) {
+  if (!state.profile) return;
+  ensureHistoryMonthInitialized();
+  const monthKey = getMonthKey(state.historyMonth);
+  if (!force && state.historyLoadedMonths[monthKey]) {
+    updateHistoryMonthLabel();
+    ensureHistorySelectedDay();
+    renderHistoryCalendar();
+    renderHistoryDetail(state.historySelectedDay);
+    return;
+  }
+  const startKey = state.historyMonth.startOf('month').toFormat('yyyy-LL-dd');
+  const endKey = state.historyMonth.endOf('month').toFormat('yyyy-LL-dd');
+  const historyQuery = query(
+    collection(db, 'days'),
+    orderBy('date'),
+    startAt(startKey),
+    endAt(endKey)
+  );
+  const snapshot = await getDocs(historyQuery);
+  snapshot.docs.forEach((docSnap) => {
+    state.historyDays[docSnap.id] = { id: docSnap.id, ...docSnap.data() };
+  });
+  state.historyLoadedMonths[monthKey] = true;
+  updateHistoryMonthLabel();
+  ensureHistorySelectedDay();
+  renderHistoryCalendar();
+  renderHistoryDetail(state.historySelectedDay);
   updateStats();
 }
 
-function renderHistoryItem(day) {
-  let li = document.querySelector(`[data-history-id="${day.id}"]`);
-  if (!li) {
-    li = document.createElement('li');
-    li.className = 'history-item';
-    li.dataset.historyId = day.id;
-    const openButton = document.createElement('button');
-    openButton.type = 'button';
-    openButton.className = 'button button--ghost';
-    openButton.textContent = '開く';
-    openButton.addEventListener('click', () => {
-      setActiveDay(day.id);
-      showToast(`${day.displayDate || day.id} を開きました`);
-    });
-    const summary = document.createElement('div');
-    summary.className = 'history-item__summary';
-    summary.innerHTML = '';
-    li.append(summary, openButton);
-    dom.historyList.appendChild(li);
+function changeHistoryMonth(offset) {
+  if (!state.profile) return;
+  ensureHistoryMonthInitialized();
+  state.historyMonth = state.historyMonth.plus({ months: offset });
+  state.historySelectedDay = null;
+  loadHistoryMonth({ force: true }).catch((error) =>
+    console.error('履歴月の読み込みに失敗:', error)
+  );
+}
+
+function renderHistoryCalendar() {
+  if (!dom.historyGrid) {
+    return;
   }
-  const summary = li.querySelector('.history-item__summary');
-  if (summary) {
-    summary.innerHTML = `
-      <strong>${day.displayDate || day.id}</strong>
-      <span>平均スコア: ${day.scoreCount ? (day.scoreSum / day.scoreCount).toFixed(2) : '-'}</span>
-      <span>ありがとう: ${typeof day.thanksTotal === 'number' ? day.thanksTotal : 0}</span>
+  ensureHistoryMonthInitialized();
+  updateHistoryMonthLabel();
+  dom.historyGrid.innerHTML = '';
+  const month = state.historyMonth;
+  const offset = month.weekday % 7;
+  const daysInMonth = month.daysInMonth;
+  const totalCells = Math.ceil((offset + daysInMonth) / 7) * 7;
+  const todayKey = state.todayKey;
+
+  for (let index = 0; index < totalCells; index += 1) {
+    const dayNumber = index - offset + 1;
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'history-day';
+    if (dayNumber < 1 || dayNumber > daysInMonth) {
+      cell.classList.add('history-day--placeholder');
+      cell.disabled = true;
+      dom.historyGrid.appendChild(cell);
+      continue;
+    }
+    const dayDate = month.set({ day: dayNumber });
+    const dayKey = dayDate.toFormat('yyyy-LL-dd');
+    const dayData = state.historyDays[dayKey];
+    const avgScoreValue = getDayAverageScore(dayData, 1);
+    const avgScore = avgScoreValue != null ? avgScoreValue : '-';
+    const thanksTotal =
+      dayData && typeof dayData.thanksTotal === 'number'
+        ? dayData.thanksTotal
+        : '-';
+    if (!dayData) {
+      cell.classList.add('history-day--empty');
+    }
+    if (dayKey === todayKey) {
+      cell.classList.add('history-day--today');
+    }
+    if (dayKey === state.historySelectedDay) {
+      cell.classList.add('history-day--selected');
+      cell.setAttribute('aria-pressed', 'true');
+    } else {
+      cell.setAttribute('aria-pressed', 'false');
+    }
+    cell.dataset.dayKey = dayKey;
+    cell.innerHTML = `
+      <span class="history-day__number">${dayNumber}</span>
+      <span class="history-day__score">平均 ${avgScore}</span>
+      <span class="history-day__thanks">ありがとう ${thanksTotal}</span>
     `;
+    cell.addEventListener('click', () => {
+      selectHistoryDay(dayKey);
+    });
+    dom.historyGrid.appendChild(cell);
   }
+}
+
+function selectHistoryDay(dayKey) {
+  if (!dayKey) return;
+  state.historySelectedDay = dayKey;
+  renderHistoryCalendar();
+  renderHistoryDetail(dayKey);
+  if (state.historyDayEntries[dayKey] === undefined) {
+    fetchHistoryDayEntries(dayKey).catch((error) =>
+      console.error('履歴詳細の取得に失敗:', error)
+    );
+  }
+}
+
+async function fetchHistoryDayEntries(dayKey) {
+  if (!state.profile || !dayKey) {
+    return;
+  }
+  if (state.historyDayEntries[dayKey] === 'loading') {
+    return;
+  }
+  state.historyDayEntries[dayKey] = 'loading';
+  renderHistoryDetail(dayKey);
+  try {
+    const entriesSnapshot = await getDocs(
+      collection(doc(db, 'days', dayKey), 'entries')
+    );
+    state.historyDayEntries[dayKey] = entriesSnapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    }));
+  } catch (error) {
+    state.historyDayEntries[dayKey] = [];
+    showToast('履歴詳細の取得に失敗しました');
+    if (state.historySelectedDay === dayKey) {
+      renderHistoryDetail(dayKey);
+    }
+    throw error;
+  }
+  if (state.historySelectedDay === dayKey) {
+    renderHistoryDetail(dayKey);
+  }
+}
+
+function renderHistoryDetail(dayKey) {
+  if (!dom.historyDetail) {
+    return;
+  }
+  if (!dayKey) {
+    if (dom.historyDetailDate) {
+      dom.historyDetailDate.textContent = '日付を選択してください';
+    }
+    if (dom.historyDetailScore) {
+      dom.historyDetailScore.textContent = '平均スコア: -';
+    }
+    if (dom.historyDetailThanks) {
+      dom.historyDetailThanks.textContent = 'ありがとう合計: -';
+    }
+    if (dom.historyDetailThanksBreakdown) {
+      dom.historyDetailThanksBreakdown.textContent = '祐介: - / 千里: -';
+    }
+    if (dom.historyDetailEntries) {
+      dom.historyDetailEntries.innerHTML = '';
+    }
+    if (dom.historyOpenDay) {
+      dom.historyOpenDay.disabled = true;
+      delete dom.historyOpenDay.dataset.dayKey;
+    }
+    return;
+  }
+  const dayData = state.historyDays[dayKey];
+  if (dom.historyDetailDate) {
+    const label = dayData && dayData.displayDate ? dayData.displayDate : dayKey;
+    dom.historyDetailDate.textContent = label;
+  }
+  const averageScoreValue = getDayAverageScore(dayData, 2);
+  const averageScoreDisplay =
+    averageScoreValue != null ? averageScoreValue : '-';
+  if (dom.historyDetailScore) {
+    dom.historyDetailScore.textContent = `平均スコア: ${averageScoreDisplay}`;
+  }
+  const thanksTotal =
+    dayData && typeof dayData.thanksTotal === 'number'
+      ? dayData.thanksTotal
+      : '-';
+  if (dom.historyDetailThanks) {
+    dom.historyDetailThanks.textContent = `ありがとう合計: ${thanksTotal}`;
+  }
+  const breakdown = (dayData && dayData.thanksBreakdown) || {};
+  const masterThanks =
+    typeof breakdown.master === 'number' ? breakdown.master : '-';
+  const chiiThanks = typeof breakdown.chii === 'number' ? breakdown.chii : '-';
+  if (dom.historyDetailThanksBreakdown) {
+    dom.historyDetailThanksBreakdown.textContent = `祐介: ${masterThanks} / 千里: ${chiiThanks}`;
+  }
+  if (dom.historyOpenDay) {
+    dom.historyOpenDay.disabled = false;
+    dom.historyOpenDay.dataset.dayKey = dayKey;
+  }
+  if (!dom.historyDetailEntries) {
+    return;
+  }
+
+  const entries = state.historyDayEntries[dayKey];
+  dom.historyDetailEntries.innerHTML = '';
+  if (entries === 'loading') {
+    const item = document.createElement('li');
+    item.className = 'history-detail__empty';
+    item.textContent = '読み込み中…';
+    dom.historyDetailEntries.appendChild(item);
+    return;
+  }
+  if (!Array.isArray(entries) || entries.length === 0) {
+    const item = document.createElement('li');
+    item.className = 'history-detail__empty';
+    item.textContent = 'まだ記録がありません。';
+    dom.historyDetailEntries.appendChild(item);
+    return;
+  }
+
+  const roleOrder = { master: 0, chii: 1 };
+  entries
+    .slice()
+    .sort((a, b) => {
+      const orderA = roleOrder[a.role] ?? 99;
+      const orderB = roleOrder[b.role] ?? 99;
+      return orderA - orderB;
+    })
+    .forEach((entry) => {
+      const item = document.createElement('li');
+      item.className = 'history-detail__entry';
+      const header = document.createElement('div');
+      header.className = 'history-detail__entry-header';
+
+      const roleSpan = document.createElement('span');
+      roleSpan.className = 'history-detail__entry-role';
+      roleSpan.textContent = roleLabels[entry.role] || entry.role || 'ー';
+      header.appendChild(roleSpan);
+
+      if (typeof entry.score === 'number') {
+        const scoreSpan = document.createElement('span');
+        scoreSpan.className = 'history-detail__entry-score';
+        scoreSpan.textContent = `評価: ${scoreLabel(entry.score)}`;
+        header.appendChild(scoreSpan);
+      }
+
+      if (entry.updatedAt) {
+        const updatedSpan = document.createElement('span');
+        updatedSpan.className = 'history-detail__entry-updated';
+        updatedSpan.textContent = `更新: ${formatDate(entry.updatedAt)}`;
+        header.appendChild(updatedSpan);
+      }
+
+      item.appendChild(header);
+
+      const note = document.createElement('p');
+      note.className = 'history-detail__entry-note';
+      note.textContent = entry.note ? entry.note : 'メモはありません。';
+      item.appendChild(note);
+
+      dom.historyDetailEntries.appendChild(item);
+    });
+}
+
+function updateHistoryDayState(dayKey, data) {
+  if (!dayKey) {
+    return;
+  }
+  state.historyDays[dayKey] = { id: dayKey, ...data };
+  if (
+    state.historyMonth &&
+    !state.historySelectedDay &&
+    isDayInMonth(dayKey, state.historyMonth)
+  ) {
+    state.historySelectedDay = dayKey;
+  }
+  if (state.historyMonth && isDayInMonth(dayKey, state.historyMonth)) {
+    renderHistoryCalendar();
+  }
+  if (state.historySelectedDay === dayKey) {
+    renderHistoryDetail(dayKey);
+  }
+}
+
+function getDayAverageScore(dayData, digits = 1) {
+  if (!dayData) {
+    return null;
+  }
+  if (typeof dayData.scoreAverage === 'number') {
+    return Number(dayData.scoreAverage).toFixed(digits);
+  }
+  const count = typeof dayData.scoreCount === 'number' ? dayData.scoreCount : 0;
+  const sum = typeof dayData.scoreSum === 'number' ? dayData.scoreSum : 0;
+  if (!count) {
+    return null;
+  }
+  return (sum / count).toFixed(digits);
 }
 
 function scoreLabel(score) {
@@ -1282,13 +1604,39 @@ function bindGlobalEvents() {
     signOut(auth);
   });
   dom.thanksButton.addEventListener('click', handleThanksClick);
-  dom.historyLoadMore.addEventListener('click', () => loadHistory(false));
   dom.jumpToday.addEventListener('click', () => {
     if (state.todayKey) {
       setActiveDay(state.todayKey);
     }
     setActiveView('today');
   });
+  if (dom.historyPrevMonth) {
+    dom.historyPrevMonth.addEventListener('click', () =>
+      changeHistoryMonth(-1)
+    );
+  }
+  if (dom.historyNextMonth) {
+    dom.historyNextMonth.addEventListener('click', () =>
+      changeHistoryMonth(1)
+    );
+  }
+  if (dom.historyOpenDay) {
+    dom.historyOpenDay.addEventListener('click', () => {
+      const dayKey = dom.historyOpenDay.dataset.dayKey;
+      if (!dayKey) {
+        return;
+      }
+      setActiveDay(dayKey)
+        .then(() => {
+          setActiveView('today');
+          showToast(`${dayKey} の詳細を開きました`);
+        })
+        .catch((error) => {
+          console.error('日付の切り替えに失敗:', error);
+          showToast('日付の切り替えに失敗しました');
+        });
+    });
+  }
   forEachNode(dom.navButtons, (button) => {
     if (!button) {
       return;
