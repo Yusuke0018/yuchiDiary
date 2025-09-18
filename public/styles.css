@@ -495,12 +495,9 @@ body {
 }
 
 .history-day--selected {
-  background: linear-gradient(
-    135deg,
-    rgba(242, 167, 167, 0.18) 0%,
-    rgba(227, 131, 131, 0.28) 100%
-  );
+  background: var(--surface);
   border-color: var(--accent-strong);
+  box-shadow: 0 0 0 3px rgba(227, 131, 131, 0.22);
 }
 
 .history-day--today {
