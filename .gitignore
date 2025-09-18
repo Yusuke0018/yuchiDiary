@@ -1,0 +1,12 @@
+node_modules/
+functions/node_modules/
+.firebase/
+.firebaserc
+firebase-debug.log
+firebase-config.js
+public/firebase-config.js
+.env
+functions/.env
+.DS_Store
+coverage/
+dist/

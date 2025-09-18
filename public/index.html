@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ゆうちいダイアリー</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app">
+      <header class="app__header">
+        <div class="brand">
+          <span class="brand__logo">ゆうちいダイアリー</span>
+          <span class="brand__tagline">今日の気持ちと感謝を分かち合う場所</span>
+        </div>
+        <div id="auth-area" class="auth">
+          <button id="login-button" class="button button--primary">
+            Googleでログイン
+          </button>
+          <div id="user-panel" class="auth__panel hidden">
+            <span id="user-name" class="auth__name"></span>
+            <button id="logout-button" class="button button--ghost">
+              ログアウト
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main id="main-content" class="main hidden" aria-live="polite">
+        <section id="agreements-section" class="card-section">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">夫婦の決め事</h2>
+              <p class="section-subtitle">
+                先頭の1件を常に表示します。編集はお二人とも可能です。
+              </p>
+            </div>
+            <div class="section-actions">
+              <button
+                id="toggle-agreement-view"
+                class="button button--ghost"
+                type="button"
+              >
+                すべて表示
+              </button>
+              <button
+                id="add-agreement"
+                class="button button--primary"
+                type="button"
+              >
+                新しい決め事
+              </button>
+            </div>
+          </div>
+          <ul
+            id="agreement-list"
+            class="agreement-list"
+            aria-live="polite"
+          ></ul>
+          <p id="agreement-empty" class="empty-message hidden">
+            まだ決め事がありません。お二人の大切な約束を追加しましょう。
+          </p>
+        </section>
+
+        <section id="day-section" class="card-section">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title" id="day-title">今日のスレッド</h2>
+              <p class="section-subtitle">
+                入力は当日内と翌日1:00まで可能です。過去のスレッドは履歴から開けます。
+              </p>
+            </div>
+            <div class="section-actions">
+              <button
+                id="jump-today"
+                class="button button--ghost"
+                type="button"
+              >
+                今日に戻る
+              </button>
+            </div>
+          </div>
+          <div id="day-meta" class="day-meta"></div>
+          <div class="entry-grid">
+            <div class="entry-card" id="entry-master"></div>
+            <div class="entry-card" id="entry-chii"></div>
+          </div>
+          <div class="thanks-panel">
+            <div class="thanks-summary">
+              <h3>ありがとうカウンター</h3>
+              <p id="thanks-total" class="thanks-total">合計 0</p>
+              <div class="thanks-breakdown">
+                <div>
+                  <span class="thanks-label">祐介：</span>
+                  <span id="thanks-master">0</span>
+                </div>
+                <div>
+                  <span class="thanks-label">千里：</span>
+                  <span id="thanks-chii">0</span>
+                </div>
+              </div>
+            </div>
+            <div class="thanks-actions">
+              <button
+                id="thanks-button"
+                class="button button--thanks"
+                type="button"
+              >
+                ありがとうを贈る
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section id="history-section" class="card-section">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">履歴</h2>
+              <p class="section-subtitle">
+                過去のスレッドを開いて振り返りや編集ができます。
+              </p>
+            </div>
+          </div>
+          <ul id="history-list" class="history-list" aria-live="polite"></ul>
+          <button
+            id="load-more-history"
+            class="button button--ghost"
+            type="button"
+          >
+            さらに読み込む
+          </button>
+        </section>
+
+        <section id="stats-section" class="card-section">
+          <div class="section-header">
+            <h2 class="section-title">統計</h2>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <h3>今日</h3>
+              <p id="stat-today-score" class="stat-score">-</p>
+              <p id="stat-today-thanks" class="stat-thanks">ありがとう -</p>
+            </div>
+            <div class="stat-card">
+              <h3>今週</h3>
+              <p id="stat-week-score" class="stat-score">-</p>
+              <p id="stat-week-thanks" class="stat-thanks">ありがとう -</p>
+            </div>
+            <div class="stat-card">
+              <h3>今月</h3>
+              <p id="stat-month-score" class="stat-score">-</p>
+              <p id="stat-month-thanks" class="stat-thanks">ありがとう -</p>
+            </div>
+          </div>
+          <canvas
+            id="trend-chart"
+            height="220"
+            aria-label="スコア推移グラフ"
+          ></canvas>
+        </section>
+
+        <section id="weekly-comment-section" class="card-section">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">週次AIコメント</h2>
+              <p class="section-subtitle">
+                毎週日曜0:00に自動で生成されます。温かい振り返りを楽しんでください。
+              </p>
+            </div>
+          </div>
+          <div id="weekly-comment-current" class="weekly-comment"></div>
+          <ul id="weekly-comment-history" class="weekly-comment-history"></ul>
+        </section>
+      </main>
+
+      <div id="signed-out" class="signed-out">
+        <p>Googleでログインして「ゆうちいダイアリー」をはじめましょう。</p>
+      </div>
+    </div>
+
+    <div id="modal-backdrop" class="modal-backdrop hidden" role="presentation">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <h3 id="modal-title" class="modal__title"></h3>
+        <form id="modal-form" class="modal__form">
+          <label class="form-field">
+            <span>タイトル</span>
+            <input
+              type="text"
+              id="agreement-title"
+              name="title"
+              required
+              maxlength="60"
+            />
+          </label>
+          <label class="form-field">
+            <span>本文</span>
+            <textarea
+              id="agreement-body"
+              name="body"
+              rows="5"
+              maxlength="500"
+              required
+            ></textarea>
+          </label>
+          <div class="modal__actions">
+            <button
+              type="button"
+              id="modal-cancel"
+              class="button button--ghost"
+            >
+              キャンセル
+            </button>
+            <button type="submit" class="button button--primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"
+      integrity="sha384-mrYQtbDNRsTA70vsK2r90oCbGyF/F2yaWag+yfsPnYgQovDHgNdbf7peXYyvRNDj"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
+      integrity="sha384-r69+CY5bIJ2w2SCV9VgQ2P76Ay4MiNh5VfFvXBkt4A0bv0VRR9NikqSBProNZo+h"
+      crossorigin="anonymous"
+    ></script>
+    <script type="module" src="./app-config.js"></script>
+    <script type="module" src="./scripts/app.js"></script>
+  </body>
+</html>

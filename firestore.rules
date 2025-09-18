@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAllowedUser() {
+      return isSignedIn() && (
+        request.auth.token.email == 'youyou00181002@gmail.com' ||
+        request.auth.token.email == 'REPLACE_WITH_CHII_EMAIL'
+      );
+    }
+
+    function isMaster() {
+      return isSignedIn() && request.auth.token.email == 'youyou00181002@gmail.com';
+    }
+
+    match /users/{userId} {
+      allow read: isAllowedUser();
+      allow create: isAllowedUser() && request.auth.uid == userId;
+      allow update: isAllowedUser() && request.auth.uid == userId;
+    }
+
+    match /agreements/{agreementId} {
+      allow read: isAllowedUser();
+      allow create: isAllowedUser();
+      allow update: isAllowedUser();
+      allow delete: isMaster();
+    }
+
+    match /days/{dayId} {
+      allow read: isAllowedUser();
+      allow create: isAllowedUser();
+      allow update: isAllowedUser();
+      allow delete: isMaster();
+
+      match /entries/{entryId} {
+        allow read: isAllowedUser();
+        allow create, update, delete: isAllowedUser() && request.auth.uid == entryId;
+      }
+    }
+
+    match /weeklyComments/{commentId} {
+      allow read: isAllowedUser();
+      allow write: if false;
+    }
+  }
+}
