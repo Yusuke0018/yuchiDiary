@@ -73,8 +73,9 @@ async function rewriteIndex(assetMappings) {
     replacements.add(mapping.originalPath);
     for (const token of replacements) {
       if (!token) continue;
-      const pattern = new RegExp(escapeRegExp(token), 'g');
-      content = content.replace(pattern, mapping.hashedPath);
+      const pattern = new RegExp(escapeRegExp(token), "g");
+      const replacement = token.startsWith("./") ? `./${mapping.hashedPath}` : mapping.hashedPath;
+      content = content.replace(pattern, replacement);
     }
   }
   await fs.promises.writeFile(indexPath, content, 'utf8');
