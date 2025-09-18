@@ -469,6 +469,8 @@ body {
   min-height: 74px;
   aspect-ratio: 1 / 1;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease,
@@ -497,12 +499,19 @@ body {
 .history-day--selected {
   background: var(--surface);
   border-color: var(--accent-strong);
-  box-shadow: 0 0 0 3px rgba(227, 131, 131, 0.22);
+}
+
+.history-day--selected::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 10px;
+  border: 2px solid rgba(227, 131, 131, 0.6);
 }
 
 .history-day--today {
   border-color: var(--accent-strong);
-  box-shadow: 0 0 0 2px rgba(227, 131, 131, 0.2);
+  box-shadow: inset 0 0 0 2px rgba(227, 131, 131, 0.18);
 }
 
 .history-day__number {
