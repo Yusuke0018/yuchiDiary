@@ -81,19 +81,45 @@ export const syncDayAggregates = onDocumentWritten(
     const entriesSnap = await dayRef.collection('entries').get();
     let scoreSum = 0;
     let scoreCount = 0;
+    const roleScore = {
+      master: { scoreSum: 0, scoreCount: 0 },
+      chii: { scoreSum: 0, scoreCount: 0 },
+    };
     entriesSnap.forEach((docSnap) => {
       const data = docSnap.data();
       if (typeof data.score === 'number') {
         scoreSum += data.score;
         scoreCount += 1;
+        const role = data.role;
+        if (role === 'master' || role === 'chii') {
+          roleScore[role].scoreSum += data.score;
+          roleScore[role].scoreCount += 1;
+        }
       }
     });
     const scoreAverage = scoreCount ? scoreSum / scoreCount : null;
+    const scoreBreakdown = {
+      master: {
+        sum: roleScore.master.scoreSum,
+        count: roleScore.master.scoreCount,
+        average: roleScore.master.scoreCount
+          ? roleScore.master.scoreSum / roleScore.master.scoreCount
+          : null,
+      },
+      chii: {
+        sum: roleScore.chii.scoreSum,
+        count: roleScore.chii.scoreCount,
+        average: roleScore.chii.scoreCount
+          ? roleScore.chii.scoreSum / roleScore.chii.scoreCount
+          : null,
+      },
+    };
     await dayRef.set(
       {
         scoreSum,
         scoreCount,
         scoreAverage,
+        scoreBreakdown,
         lastAggregateAt: FIELD_VALUE.serverTimestamp(),
       },
       { merge: true }

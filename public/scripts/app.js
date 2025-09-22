@@ -78,6 +78,37 @@ const roleLabels = APP_USERS.reduce((acc, user) => {
   return acc;
 }, {});
 
+const ROLES = ['master', 'chii'];
+const PARTNER_ROLE = {
+  master: 'chii',
+  chii: 'master',
+};
+
+const ROLE_CHART_STYLE = {
+  master: {
+    scoreBorder: '#8f6bff',
+    scoreBackground: 'rgba(143, 107, 255, 0.22)',
+    thanksBorder: 'rgba(143, 107, 255, 0.7)',
+    thanksBackground: 'rgba(143, 107, 255, 0.32)',
+  },
+  chii: {
+    scoreBorder: '#5ccfc0',
+    scoreBackground: 'rgba(92, 207, 192, 0.24)',
+    thanksBorder: 'rgba(92, 207, 192, 0.7)',
+    thanksBackground: 'rgba(92, 207, 192, 0.32)',
+  },
+};
+
+const scoreBreakdownCache = new Map();
+
+function getDisplayNameByRole(role) {
+  return roleLabels[role] || role;
+}
+
+function getPartnerRole(role) {
+  return PARTNER_ROLE[role] || null;
+}
+
 const state = {
   authUser: null,
   profile: null,
@@ -160,7 +191,8 @@ function collectViewSections() {
 }
 
 function getThanksKeys() {
-  const role = state.profile && state.profile.role === 'chii' ? 'chii' : 'master';
+  const role =
+    state.profile && state.profile.role === 'chii' ? 'chii' : 'master';
   return {
     sentKey: role,
     receivedKey: role === 'master' ? 'chii' : 'master',
@@ -197,7 +229,10 @@ function parseVersionDescriptor(text) {
   try {
     return JSON.parse(trimmed);
   } catch (error) {
-    console.info('version.txt は JSON 解析に失敗したため、key=value 形式で処理します。', error);
+    console.info(
+      'version.txt は JSON 解析に失敗したため、key=value 形式で処理します。',
+      error
+    );
     const lines = trimmed.split(/\r?\n/);
     const descriptor = {};
     lines.forEach((line) => {
@@ -356,7 +391,8 @@ function setupViewSwipe() {
     return;
   }
   const viewOrder = ['today', 'agreements', 'history', 'stats'];
-  const interactiveSelector = 'input, textarea, select, button, a, [role="button"], [contenteditable="true"]';
+  const interactiveSelector =
+    'input, textarea, select, button, a, [role="button"], [contenteditable="true"]';
 
   let startX = 0;
   let startY = 0;
@@ -416,7 +452,8 @@ function setupViewSwipe() {
       0,
       viewOrder.indexOf(state.activeView || 'today')
     );
-    const nextIndex = (currentIndex + direction + viewOrder.length) % viewOrder.length;
+    const nextIndex =
+      (currentIndex + direction + viewOrder.length) % viewOrder.length;
     const nextView = viewOrder[nextIndex];
     if (nextView) {
       setActiveView(nextView);
@@ -449,9 +486,6 @@ function setupViewSwipe() {
   container.addEventListener('touchend', handleSwipeEnd, { passive: true });
   container.addEventListener('touchcancel', reset, { passive: true });
 }
-
-
-
 
 const dom = {
   loginButton: document.getElementById('login-button'),
@@ -492,13 +526,35 @@ const dom = {
   jumpToday: document.getElementById('jump-today'),
   statTodayScore: document.getElementById('stat-today-score'),
   statTodayThanksSent: document.getElementById('stat-today-thanks-sent'),
-  statTodayThanksReceived: document.getElementById('stat-today-thanks-received'),
+  statTodayThanksReceived: document.getElementById(
+    'stat-today-thanks-received'
+  ),
   statWeekScore: document.getElementById('stat-week-score'),
   statWeekThanksSent: document.getElementById('stat-week-thanks-sent'),
   statWeekThanksReceived: document.getElementById('stat-week-thanks-received'),
   statMonthScore: document.getElementById('stat-month-score'),
   statMonthThanksSent: document.getElementById('stat-month-thanks-sent'),
-  statMonthThanksReceived: document.getElementById('stat-month-thanks-received'),
+  statMonthThanksReceived: document.getElementById(
+    'stat-month-thanks-received'
+  ),
+  statPerson: {
+    master: {
+      todayScore: document.getElementById('stat-master-today-score'),
+      todayThanks: document.getElementById('stat-master-today-thanks'),
+      weekScore: document.getElementById('stat-master-week-score'),
+      weekThanks: document.getElementById('stat-master-week-thanks'),
+      monthScore: document.getElementById('stat-master-month-score'),
+      monthThanks: document.getElementById('stat-master-month-thanks'),
+    },
+    chii: {
+      todayScore: document.getElementById('stat-chii-today-score'),
+      todayThanks: document.getElementById('stat-chii-today-thanks'),
+      weekScore: document.getElementById('stat-chii-week-score'),
+      weekThanks: document.getElementById('stat-chii-week-thanks'),
+      monthScore: document.getElementById('stat-chii-month-score'),
+      monthThanks: document.getElementById('stat-chii-month-thanks'),
+    },
+  },
   trendCanvas: document.getElementById('trend-chart'),
   weeklyCurrent: document.getElementById('weekly-comment-current'),
   weeklyHistory: document.getElementById('weekly-comment-history'),
@@ -563,19 +619,6 @@ function findScoreOptionByValue(value) {
     const option = SCORE_OPTIONS[index];
     if (option && Number(option.value) === Number(value)) {
       return option;
-    }
-  }
-  return null;
-}
-
-function findDayById(days, id) {
-  if (!Array.isArray(days) || !id) {
-    return null;
-  }
-  for (let index = 0; index < days.length; index += 1) {
-    const day = days[index];
-    if (day && day.id === id) {
-      return day;
     }
   }
   return null;
@@ -1182,43 +1225,85 @@ function renderEntryCard(container, { role, entry }) {
   header.className = 'entry-card__header';
   const title = document.createElement('h3');
   title.className = 'entry-card__title';
-  if (role === 'chii') {
-    title.textContent = '今日のゆうちゃんへの評価';
-  } else {
-    title.textContent = roleLabels[role] || role;
-  }
+  title.textContent = `${getDisplayNameByRole(role)}のメッセージ`;
   const status = document.createElement('span');
   status.className = 'entry-card__status';
   status.textContent = entry
-    ? `更新: ${formatDate(entry.updatedAt)}`
+    ? `最終更新: ${formatDate(entry.updatedAt)}`
     : 'まだ入力がありません';
   header.append(title, status);
   container.appendChild(header);
+  const partnerRole = getPartnerRole(role);
+  const partnerName = partnerRole ? getDisplayNameByRole(partnerRole) : null;
+  const names = document.createElement('div');
+  names.className = 'entry-card__names';
+  const sender = document.createElement('span');
+  sender.className = `entry-card__name entry-card__name--${role}`;
+  sender.textContent = getDisplayNameByRole(role);
+  const arrow = document.createElement('span');
+  arrow.className = 'entry-card__arrow';
+  arrow.textContent = '→';
+  const receiver = document.createElement('span');
+  receiver.className = 'entry-card__name';
+  if (partnerRole) {
+    receiver.classList.add(`entry-card__name--${partnerRole}`);
+  }
+  receiver.textContent = partnerName || 'パートナー';
+  names.append(sender, arrow, receiver);
+  container.appendChild(names);
   if (isCurrentUser) {
-    const form = createEntryForm(role, entry);
+    const form = createEntryForm(role, entry, partnerName);
     container.appendChild(form);
   } else {
     const viewer = document.createElement('div');
     viewer.className = 'entry-display';
-    if (entry) {
-      viewer.innerHTML = `
-        <div class="entry-display__score">評価: ${scoreLabel(entry.score)}</div>
-        <p>${escapeHtml(entry.note || '')}</p>
-      `;
+    const meta = document.createElement('div');
+    meta.className = 'entry-display__meta';
+    const recipient = document.createElement('span');
+    recipient.className = 'entry-display__recipient';
+    recipient.textContent = partnerName
+      ? `${partnerName}へのメッセージ`
+      : '感想・メモ';
+    const scoreInfo = document.createElement('span');
+    scoreInfo.className = 'entry-display__score';
+    scoreInfo.textContent = `今日のスコア: ${
+      entry ? scoreLabel(entry.score) : '-'
+    }`;
+    meta.append(recipient, scoreInfo);
+    viewer.appendChild(meta);
+    const message = document.createElement('p');
+    message.className = 'entry-display__message';
+    if (entry && entry.note && String(entry.note).trim()) {
+      message.textContent = entry.note;
     } else {
-      viewer.innerHTML = '<p>まだ入力がありません。</p>';
+      message.classList.add('entry-display__message--empty');
+      message.textContent = 'メッセージはまだありません。';
     }
+    viewer.appendChild(message);
     container.appendChild(viewer);
   }
 }
 
-function createEntryForm(role, entry) {
+function createEntryForm(role, entry, partnerName) {
   const form = document.createElement('form');
   form.className = 'entry-form';
   const selectedScore =
     entry && typeof entry.score === 'number' ? Number(entry.score) : null;
   const noteValue = entry && typeof entry.note === 'string' ? entry.note : '';
+  const messageLabel = partnerName
+    ? `${partnerName}へのメッセージ`
+    : '感想・メモ';
+  const messagePlaceholder = partnerName
+    ? `${partnerName}に伝えたいことを丁寧に書きましょう`
+    : '今日の出来事や感謝したいことを書いてください';
+  const hint = partnerName
+    ? `保存すると${partnerName}に届けられます。`
+    : '保存すると相手にも共有されます。';
   form.innerHTML = `
+    <div class="entry-form__meta">
+      <span class="entry-form__recipient">${escapeHtml(messageLabel)}</span>
+      <span class="entry-form__hint">${escapeHtml(hint)}</span>
+    </div>
     <label>
       <span>今日の自己評価</span>
       <select name="score" required>
@@ -1230,11 +1315,11 @@ function createEntryForm(role, entry) {
         ).join('')}
       </select>
     </label>
-    <label>
-      <span>感想・メモ</span>
-      <textarea name="note" rows="6" placeholder="今日の出来事や感謝したいことを書いてください">${
-        noteValue ? escapeHtml(noteValue) : ''
-      }</textarea>
+    <label class="entry-form__field">
+      <span>${escapeHtml(messageLabel)}</span>
+      <textarea name="note" rows="6" placeholder="${escapeHtml(
+        messagePlaceholder
+      )}">${noteValue ? escapeHtml(noteValue) : ''}</textarea>
     </label>
     <div class="entry-form__actions">
       <button type="submit" class="button button--primary">保存</button>
@@ -1834,17 +1919,23 @@ async function updateStats() {
     id: docSnap.id,
     ...docSnap.data(),
   }));
+  await ensureScoreBreakdown(days);
   applyStats(days);
   updateChart(days.slice().reverse());
 }
 
 function updateStatsFromDayDoc(dayKey, dayData) {
+  if (hasValidScoreBreakdown(dayData)) {
+    scoreBreakdownCache.set(dayKey, dayData.scoreBreakdown);
+  }
   if (dayKey === state.todayKey) {
-    dom.statTodayScore.textContent = dayData.scoreCount
-      ? (dayData.scoreSum / dayData.scoreCount).toFixed(2)
+    const todayRoleStats = getRoleStatsFromDay(dayData || {});
+    const summary = summarizeRoleStats(todayRoleStats);
+    dom.statTodayScore.textContent = summary.scoreCount
+      ? (summary.scoreSum / summary.scoreCount).toFixed(2)
       : '-';
     const { sent, received } = getThanksSplitFromBreakdown(
-      dayData.thanksBreakdown
+      dayData && dayData.thanksBreakdown
     );
     renderThanksStat(
       dom.statTodayThanksSent,
@@ -1852,40 +1943,210 @@ function updateStatsFromDayDoc(dayKey, dayData) {
       sent,
       received
     );
+    updatePersonStatsForPeriod('today', todayRoleStats, { hasData: true });
   }
 }
 
-function applyStats(days) {
-  const today = findDayById(days, state.todayKey);
-  if (today) {
-    dom.statTodayScore.textContent = today.scoreCount
-      ? (today.scoreSum / today.scoreCount).toFixed(2)
-      : '-';
-    const todaySplit = getThanksSplitFromBreakdown(today.thanksBreakdown);
-    renderThanksStat(
-      dom.statTodayThanksSent,
-      dom.statTodayThanksReceived,
-      todaySplit.sent,
-      todaySplit.received
-    );
+function createEmptyRoleStats() {
+  const stats = {};
+  ROLES.forEach((role) => {
+    stats[role] = { scoreSum: 0, scoreCount: 0, thanks: 0 };
+  });
+  return stats;
+}
+
+function getScoreBreakdownFromDay(day) {
+  const breakdown = {};
+  ROLES.forEach((role) => {
+    const raw =
+      day && day.scoreBreakdown && typeof day.scoreBreakdown === 'object'
+        ? day.scoreBreakdown[role]
+        : null;
+    const sum = raw && typeof raw.sum === 'number' ? raw.sum : 0;
+    const count = raw && typeof raw.count === 'number' ? raw.count : 0;
+    const average =
+      raw && typeof raw.average === 'number'
+        ? raw.average
+        : count > 0
+          ? sum / count
+          : null;
+    breakdown[role] = { sum, count, average };
+  });
+  return breakdown;
+}
+
+function getThanksBreakdownFromDay(day) {
+  const breakdown = {};
+  ROLES.forEach((role) => {
+    const raw =
+      day && day.thanksBreakdown && typeof day.thanksBreakdown === 'object'
+        ? day.thanksBreakdown[role]
+        : null;
+    breakdown[role] = typeof raw === 'number' ? raw : 0;
+  });
+  return breakdown;
+}
+
+function getRoleStatsFromDay(day) {
+  const stats = createEmptyRoleStats();
+  const score = getScoreBreakdownFromDay(day || {});
+  const thanks = getThanksBreakdownFromDay(day || {});
+  ROLES.forEach((role) => {
+    stats[role].scoreSum = score[role].sum;
+    stats[role].scoreCount = score[role].count;
+    stats[role].thanks = thanks[role];
+  });
+  return stats;
+}
+
+function addRoleStats(target, addition) {
+  ROLES.forEach((role) => {
+    const source = addition[role] || {};
+    target[role].scoreSum += source.scoreSum || 0;
+    target[role].scoreCount += source.scoreCount || 0;
+    target[role].thanks += source.thanks || 0;
+  });
+}
+
+function summarizeRoleStats(statsByRole) {
+  return ROLES.reduce(
+    (acc, role) => {
+      const stats = statsByRole[role] || {};
+      acc.scoreSum += stats.scoreSum || 0;
+      acc.scoreCount += stats.scoreCount || 0;
+      acc.thanks += stats.thanks || 0;
+      return acc;
+    },
+    { scoreSum: 0, scoreCount: 0, thanks: 0 }
+  );
+}
+
+function updatePersonStatsForPeriod(period, statsByRole, options = {}) {
+  const hasData = options.hasData !== undefined ? options.hasData : true;
+  ROLES.forEach((role) => {
+    const targets = dom.statPerson && dom.statPerson[role];
+    if (!targets) {
+      return;
+    }
+    const scoreNode = targets[`${period}Score`];
+    const thanksNode = targets[`${period}Thanks`];
+    const roleStats = statsByRole[role] || {
+      scoreSum: 0,
+      scoreCount: 0,
+      thanks: 0,
+    };
+    if (scoreNode) {
+      if (!hasData) {
+        scoreNode.textContent = '-';
+      } else if (roleStats.scoreCount) {
+        scoreNode.textContent = (
+          roleStats.scoreSum / roleStats.scoreCount
+        ).toFixed(2);
+      } else {
+        scoreNode.textContent = '-';
+      }
+    }
+    if (thanksNode) {
+      thanksNode.textContent = hasData
+        ? `ありがとう ${roleStats.thanks || 0}`
+        : 'ありがとう -';
+    }
+  });
+}
+
+function hasValidScoreBreakdown(day) {
+  if (!day || typeof day.scoreBreakdown !== 'object') {
+    return false;
   }
+  return ROLES.every((role) => {
+    const data = day.scoreBreakdown[role];
+    if (!data || typeof data !== 'object') {
+      return false;
+    }
+    return typeof data.sum === 'number' && typeof data.count === 'number';
+  });
+}
+
+async function ensureScoreBreakdown(days) {
+  await Promise.all(
+    days.map(async (day) => {
+      if (!day || !day.id) {
+        return;
+      }
+      if (hasValidScoreBreakdown(day)) {
+        scoreBreakdownCache.set(day.id, day.scoreBreakdown);
+        return;
+      }
+      const cached = scoreBreakdownCache.get(day.id);
+      if (cached) {
+        day.scoreBreakdown = cached;
+        return;
+      }
+      const entriesSnap = await getDocs(
+        collection(db, 'days', day.id, 'entries')
+      );
+      const roleStats = createEmptyRoleStats();
+      entriesSnap.forEach((entrySnap) => {
+        const data = entrySnap.data();
+        const role = data && data.role;
+        const score = data && data.score;
+        if (
+          (role === 'master' || role === 'chii') &&
+          typeof score === 'number'
+        ) {
+          roleStats[role].scoreSum += score;
+          roleStats[role].scoreCount += 1;
+        }
+      });
+      const breakdown = {
+        master: {
+          sum: roleStats.master.scoreSum,
+          count: roleStats.master.scoreCount,
+          average: roleStats.master.scoreCount
+            ? roleStats.master.scoreSum / roleStats.master.scoreCount
+            : null,
+        },
+        chii: {
+          sum: roleStats.chii.scoreSum,
+          count: roleStats.chii.scoreCount,
+          average: roleStats.chii.scoreCount
+            ? roleStats.chii.scoreSum / roleStats.chii.scoreCount
+            : null,
+        },
+      };
+      day.scoreBreakdown = breakdown;
+      scoreBreakdownCache.set(day.id, breakdown);
+    })
+  );
+}
+
+function applyStats(days) {
   const now = DateTime.now().setZone(APP_SETTINGS.timezone, {
     keepLocalTime: false,
   });
   const weekKey = getDateInfo().weekKey;
   const monthKey = now.toFormat('yyyy-LL');
-  let weekScoreSum = 0;
-  let weekScoreCount = 0;
+  const todayStats = createEmptyRoleStats();
+  const weekStats = createEmptyRoleStats();
+  const monthStats = createEmptyRoleStats();
+  let todaySplit = { sent: 0, received: 0 };
+  let hasToday = false;
   let weekThanksSent = 0;
   let weekThanksReceived = 0;
-  let monthScoreSum = 0;
-  let monthScoreCount = 0;
   let monthThanksSent = 0;
   let monthThanksReceived = 0;
   days.forEach((day) => {
-    if (day.weekKey === weekKey && day.scoreCount) {
-      weekScoreSum += day.scoreSum || 0;
-      weekScoreCount += day.scoreCount;
+    if (!day) {
+      return;
+    }
+    const roleStats = getRoleStatsFromDay(day);
+    if (day.id === state.todayKey) {
+      addRoleStats(todayStats, roleStats);
+      hasToday = true;
+      todaySplit = getThanksSplitFromBreakdown(day.thanksBreakdown);
+    }
+    if (day.weekKey === weekKey) {
+      addRoleStats(weekStats, roleStats);
       const { sent, received } = getThanksSplitFromBreakdown(
         day.thanksBreakdown
       );
@@ -1893,10 +2154,7 @@ function applyStats(days) {
       weekThanksReceived += received;
     }
     if (typeof day.id === 'string' && day.id.indexOf(monthKey) === 0) {
-      if (day.scoreCount) {
-        monthScoreSum += day.scoreSum || 0;
-        monthScoreCount += day.scoreCount;
-      }
+      addRoleStats(monthStats, roleStats);
       const { sent, received } = getThanksSplitFromBreakdown(
         day.thanksBreakdown
       );
@@ -1904,8 +2162,31 @@ function applyStats(days) {
       monthThanksReceived += received;
     }
   });
-  dom.statWeekScore.textContent = weekScoreCount
-    ? (weekScoreSum / weekScoreCount).toFixed(2)
+
+  const todaySummary = summarizeRoleStats(todayStats);
+  if (hasToday) {
+    dom.statTodayScore.textContent = todaySummary.scoreCount
+      ? (todaySummary.scoreSum / todaySummary.scoreCount).toFixed(2)
+      : '-';
+    renderThanksStat(
+      dom.statTodayThanksSent,
+      dom.statTodayThanksReceived,
+      todaySplit.sent,
+      todaySplit.received
+    );
+  } else {
+    dom.statTodayScore.textContent = '-';
+    renderThanksStat(
+      dom.statTodayThanksSent,
+      dom.statTodayThanksReceived,
+      0,
+      0
+    );
+  }
+
+  const weekSummary = summarizeRoleStats(weekStats);
+  dom.statWeekScore.textContent = weekSummary.scoreCount
+    ? (weekSummary.scoreSum / weekSummary.scoreCount).toFixed(2)
     : '-';
   renderThanksStat(
     dom.statWeekThanksSent,
@@ -1913,8 +2194,10 @@ function applyStats(days) {
     weekThanksSent,
     weekThanksReceived
   );
-  dom.statMonthScore.textContent = monthScoreCount
-    ? (monthScoreSum / monthScoreCount).toFixed(2)
+
+  const monthSummary = summarizeRoleStats(monthStats);
+  dom.statMonthScore.textContent = monthSummary.scoreCount
+    ? (monthSummary.scoreSum / monthSummary.scoreCount).toFixed(2)
     : '-';
   renderThanksStat(
     dom.statMonthThanksSent,
@@ -1922,6 +2205,10 @@ function applyStats(days) {
     monthThanksSent,
     monthThanksReceived
   );
+
+  updatePersonStatsForPeriod('today', todayStats, { hasData: hasToday });
+  updatePersonStatsForPeriod('week', weekStats);
+  updatePersonStatsForPeriod('month', monthStats);
 }
 
 function updateChart(days) {
@@ -1929,16 +2216,28 @@ function updateChart(days) {
     return;
   }
   const labels = days.map((day) => day.displayDate || day.id);
-  const averages = days.map((day) =>
-    day.scoreCount ? Number((day.scoreSum / day.scoreCount).toFixed(2)) : null
-  );
-  const thanks = days.map((day) => day.thanksTotal || 0);
+  const masterScores = [];
+  const chiiScores = [];
+  const masterThanks = [];
+  const chiiThanks = [];
+  days.forEach((day) => {
+    const scoreBreakdown = getScoreBreakdownFromDay(day || {});
+    const thanksBreakdown = getThanksBreakdownFromDay(day || {});
+    const masterAverage = scoreBreakdown.master.average;
+    const chiiAverage = scoreBreakdown.chii.average;
+    masterScores.push(
+      typeof masterAverage === 'number'
+        ? Number(masterAverage.toFixed(2))
+        : null
+    );
+    chiiScores.push(
+      typeof chiiAverage === 'number' ? Number(chiiAverage.toFixed(2)) : null
+    );
+    masterThanks.push(thanksBreakdown.master || 0);
+    chiiThanks.push(thanksBreakdown.chii || 0);
+  });
   if (state.chart) {
-    state.chart.data.labels = labels;
-    state.chart.data.datasets[0].data = averages;
-    state.chart.data.datasets[1].data = thanks;
-    state.chart.update();
-    return;
+    state.chart.destroy();
   }
   state.chart = new Chart(dom.trendCanvas.getContext('2d'), {
     type: 'line',
@@ -1946,20 +2245,46 @@ function updateChart(days) {
       labels,
       datasets: [
         {
-          label: '平均スコア',
-          data: averages,
-          borderColor: '#e38383',
-          backgroundColor: 'rgba(227, 131, 131, 0.2)',
+          label: '祐介のスコア',
+          data: masterScores,
+          borderColor: ROLE_CHART_STYLE.master.scoreBorder,
+          backgroundColor: ROLE_CHART_STYLE.master.scoreBackground,
           tension: 0.3,
+          spanGaps: true,
           yAxisID: 'y',
+          order: 1,
         },
         {
-          label: 'ありがとう',
-          data: thanks,
-          borderColor: '#f2a7a7',
-          backgroundColor: 'rgba(242, 167, 167, 0.2)',
+          label: '千里のスコア',
+          data: chiiScores,
+          borderColor: ROLE_CHART_STYLE.chii.scoreBorder,
+          backgroundColor: ROLE_CHART_STYLE.chii.scoreBackground,
+          tension: 0.3,
+          spanGaps: true,
+          yAxisID: 'y',
+          order: 1,
+        },
+        {
+          label: '祐介のありがとう',
+          data: masterThanks,
+          borderColor: ROLE_CHART_STYLE.master.thanksBorder,
+          backgroundColor: ROLE_CHART_STYLE.master.thanksBackground,
           type: 'bar',
           yAxisID: 'y1',
+          stack: 'thanks',
+          order: 2,
+          borderWidth: 1,
+        },
+        {
+          label: '千里のありがとう',
+          data: chiiThanks,
+          borderColor: ROLE_CHART_STYLE.chii.thanksBorder,
+          backgroundColor: ROLE_CHART_STYLE.chii.thanksBackground,
+          type: 'bar',
+          yAxisID: 'y1',
+          stack: 'thanks',
+          order: 2,
+          borderWidth: 1,
         },
       ],
     },
@@ -1986,6 +2311,8 @@ function updateChart(days) {
           grid: {
             drawOnChartArea: false,
           },
+          stacked: true,
+          beginAtZero: true,
           ticks: {
             stepSize: 1,
           },
@@ -2023,9 +2350,7 @@ function bindGlobalEvents() {
     );
   }
   if (dom.historyNextMonth) {
-    dom.historyNextMonth.addEventListener('click', () =>
-      changeHistoryMonth(1)
-    );
+    dom.historyNextMonth.addEventListener('click', () => changeHistoryMonth(1));
   }
   setupViewSwipe();
   if (dom.historyOpenDay) {
