@@ -109,6 +109,16 @@ function getPartnerRole(role) {
   return PARTNER_ROLE[role] || null;
 }
 
+function getRecipientNickname(role, fallback) {
+  if (role === 'chii') {
+    return 'ちいちゃん';
+  }
+  if (role === 'master') {
+    return 'ゆうちゃん';
+  }
+  return fallback || 'パートナー';
+}
+
 const state = {
   authUser: null,
   profile: null,
@@ -1235,24 +1245,20 @@ function renderEntryCard(container, { role, entry }) {
   container.appendChild(header);
   const partnerRole = getPartnerRole(role);
   const partnerName = partnerRole ? getDisplayNameByRole(partnerRole) : null;
+  const recipientNickname = getRecipientNickname(partnerRole, partnerName);
+  const recipientLabel = `${recipientNickname}へ`;
   const names = document.createElement('div');
   names.className = 'entry-card__names';
-  const sender = document.createElement('span');
-  sender.className = `entry-card__name entry-card__name--${role}`;
-  sender.textContent = getDisplayNameByRole(role);
-  const arrow = document.createElement('span');
-  arrow.className = 'entry-card__arrow';
-  arrow.textContent = '→';
-  const receiver = document.createElement('span');
-  receiver.className = 'entry-card__name';
+  const recipientChip = document.createElement('span');
+  recipientChip.className = 'entry-card__name';
   if (partnerRole) {
-    receiver.classList.add(`entry-card__name--${partnerRole}`);
+    recipientChip.classList.add(`entry-card__name--${partnerRole}`);
   }
-  receiver.textContent = partnerName || 'パートナー';
-  names.append(sender, arrow, receiver);
+  recipientChip.textContent = recipientLabel;
+  names.append(recipientChip);
   container.appendChild(names);
   if (isCurrentUser) {
-    const form = createEntryForm(role, entry, partnerName);
+    const form = createEntryForm(role, entry, partnerName, recipientNickname);
     container.appendChild(form);
   } else {
     const viewer = document.createElement('div');
@@ -1261,9 +1267,7 @@ function renderEntryCard(container, { role, entry }) {
     meta.className = 'entry-display__meta';
     const recipient = document.createElement('span');
     recipient.className = 'entry-display__recipient';
-    recipient.textContent = partnerName
-      ? `${partnerName}へのメッセージ`
-      : '感想・メモ';
+    recipient.textContent = `${recipientNickname}へのメッセージ`;
     const scoreInfo = document.createElement('span');
     scoreInfo.className = 'entry-display__score';
     scoreInfo.textContent = `今日のスコア: ${
@@ -1284,21 +1288,16 @@ function renderEntryCard(container, { role, entry }) {
   }
 }
 
-function createEntryForm(role, entry, partnerName) {
+function createEntryForm(role, entry, partnerName, recipientNickname) {
   const form = document.createElement('form');
   form.className = 'entry-form';
   const selectedScore =
     entry && typeof entry.score === 'number' ? Number(entry.score) : null;
   const noteValue = entry && typeof entry.note === 'string' ? entry.note : '';
-  const messageLabel = partnerName
-    ? `${partnerName}へのメッセージ`
-    : '感想・メモ';
-  const messagePlaceholder = partnerName
-    ? `${partnerName}に伝えたいことを丁寧に書きましょう`
-    : '今日の出来事や感謝したいことを書いてください';
-  const hint = partnerName
-    ? `保存すると${partnerName}に届けられます。`
-    : '保存すると相手にも共有されます。';
+  const nickname = recipientNickname || partnerName || 'パートナー';
+  const messageLabel = `${nickname}へのメッセージ`;
+  const messagePlaceholder = `${nickname}に伝えたいことを丁寧に書きましょう`;
+  const hint = `保存すると${nickname}の画面に届きます。`;
   form.innerHTML = `
     <div class="entry-form__meta">
       <span class="entry-form__recipient">${escapeHtml(messageLabel)}</span>
